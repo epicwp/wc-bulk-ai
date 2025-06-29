@@ -1,0 +1,29 @@
+<?xml version="1.0"?>
+<ruleset name="WC Bulk AI">
+	<config name="minimum_wp_version" value="6.5"/>
+    <config name="testVersion" value="8.1-"/>
+  <arg name="parallel" value="100"/>
+
+  <rule ref="Oblak"/>
+  <rule ref="Oblak-Advanced"/>
+
+    <rule ref="WordPress.WP.I18n">
+        <properties>
+			<property name="text_domain" type="array" extend="true">
+				<element value="default"/>
+				<element value="wc-bulk-ai"/>
+			</property>
+		</properties>
+	</rule>
+
+    <rule ref="WordPress.Security.EscapeOutput">
+        <properties>
+            <property name="customAutoEscapedFunctions" type="array" extend="true">
+                <element value="wp_date"/>
+            </property>
+        </properties>
+    </rule>
+
+  <file>wc-bulk-ai.php</file>
+  <file>src/</file>
+</ruleset>

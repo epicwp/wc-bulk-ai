@@ -1,0 +1,23 @@
+{
+  "require": {
+    "openai-php/client": "^0.14.0",
+    "symfony/http-client": "^7.3",
+    "nyholm/psr7": "^1.8",
+    "x-wp/di": "^1.8",
+    "automattic/jetpack-autoloader": "^5.0"
+  },
+  "config": {
+    "allow-plugins": {
+      "php-http/discovery": true,
+      "automattic/jetpack-autoloader": true
+    }
+  },
+  "autoload": {
+    "psr-4": {
+      "EPICWP\\WC_Bulk_AI\\": "src/"
+    }
+  },
+  "require-dev": {
+    "phpstan/phpstan": "^2.1"
+  }
+}
