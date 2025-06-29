@@ -10,8 +10,8 @@ class Job {
     protected int $run_id;
     protected string $task;
     protected DateTime $created_at;
-    protected DateTime $started_at;
-    protected DateTime $finished_at;
+    protected ?DateTime $started_at = null;
+    protected ?DateTime $finished_at = null;
 
     public function __construct(
         protected int $id,
@@ -23,17 +23,21 @@ class Job {
         global $wpdb;
         $job = $wpdb->get_row(
             $wpdb->prepare(
-                "SELECT * FROM {$wpdb->prefix}wc_bulk_ai_jobs WHERE id = %d",
+                "SELECT * FROM {$wpdb->prefix}wcbai_jobs WHERE id = %d",
                 $this->id
             )
         );
+        
+        if (!$job) {
+            throw new \Exception("Job with ID {$this->id} not found");
+        }
+        
         $this->status = $job->status;
         $this->product_id = $job->product_id;
         $this->run_id = $job->run_id;
-        $this->task = $job->task;
         $this->created_at = new DateTime($job->created_at);
-        $this->started_at = new DateTime($job->started_at);
-        $this->finished_at = new DateTime($job->finished_at);
+        $this->started_at = $job->started_at ? new DateTime($job->started_at) : null;
+        $this->finished_at = $job->finished_at ? new DateTime($job->finished_at) : null;
     }
 
     public function get_status(): string {
@@ -49,28 +53,31 @@ class Job {
     }
 
     public function get_task(): string {
-        return $this->task;
+        $run = new Run($this->run_id);
+        return $run->get_task();
     }
 
     public function get_created_at(): DateTime {
         return $this->created_at;
     }
 
-    public function get_started_at(): DateTime {
+    public function get_started_at(): ?DateTime {
         return $this->started_at;
     }
 
-    public function get_finished_at(): DateTime {
+    public function get_finished_at(): ?DateTime {
         return $this->finished_at;
     }
 
-    public static function create(string $task, int $product_id): Job {
+    public static function create(int $run_id, int $product_id): Job {
         global $wpdb;
         $wpdb->insert(
-            $wpdb->prefix . 'wc_bulk_ai_jobs',
+            $wpdb->prefix . 'wcbai_jobs',
             array(
-                'task' => $task,
+                'run_id' => $run_id,
                 'product_id' => $product_id,
+                'status' => 'pending',
+                'created_at' => \current_time('mysql'),
             )
         );
         return new Job($wpdb->insert_id);
