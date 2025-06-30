@@ -10,6 +10,7 @@ use EPICWP\WC_Bulk_AI\Services\Logger\Verbose_Logger;
 use EPICWP\WC_Bulk_AI\Interfaces\Process_Logger;
 use XWP\DI\Decorators\Module;
 use XWP\DI\Interfaces\On_Initialize;
+use EPICWP\WC_Bulk_AI\Services\Task_Manager;
 
 #[Module(
     container: 'wc-bulk-ai',
@@ -37,7 +38,8 @@ class App implements On_Initialize {
     public static function configure(): array {
         return array(
             'app.client' => \OpenAI::client( \get_option( 'wcbai_openai_api_key' ) ),
-            Process_Logger::class => \DI\autowire(Verbose_Logger::class),
+            'app.default_tasks' => \DI\factory( array( Task_Manager::class, 'get_tasks' ) ),
+            Process_Logger::class => \DI\autowire( Verbose_Logger::class ),
         );
     }
 

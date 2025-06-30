@@ -10,7 +10,7 @@ use OpenAI\Responses\Chat\CreateResponse;
 class Verbose_Logger implements Process_Logger {
 
     public function log_conversation_start(string $task, int $product_id): void {
-        \WP_CLI::log(\WP_CLI::colorize("%g=== Starting AI Conversation ===%n"));
+        \WP_CLI::log(\WP_CLI::colorize("%g=== Starting Product Bulk Agent ===%n"));
         \WP_CLI::log("Task: " . $task);
         \WP_CLI::log("Product ID: " . $product_id);
         \WP_CLI::log("");
@@ -18,10 +18,11 @@ class Verbose_Logger implements Process_Logger {
     
     public function log_iteration(int $iteration): void {
         \WP_CLI::log(\WP_CLI::colorize("%b--- Iteration {$iteration} ---%n"));
+        \WP_CLI::log('');
     }
     
     public function log_ai_response(CreateResponse $response): void {
-        \WP_CLI::log(\WP_CLI::colorize("%c🤖 AI Response:%n"));
+        \WP_CLI::log(\WP_CLI::colorize("%c🤖 Agent Response:%n"));
         
         $choice = $response->choices[0];
         
@@ -30,7 +31,7 @@ class Verbose_Logger implements Process_Logger {
         }
         
         if (!empty($choice->message->toolCalls)) {
-            \WP_CLI::log(\WP_CLI::colorize("%y🔧 AI wants to call " . count($choice->message->toolCalls) . " tool(s):%n"));
+            \WP_CLI::log(\WP_CLI::colorize("%y🔧 Agent wants to call " . count($choice->message->toolCalls) . " tool(s):%n"));
         }
         
         \WP_CLI::log("Finish reason: " . $choice->finishReason);

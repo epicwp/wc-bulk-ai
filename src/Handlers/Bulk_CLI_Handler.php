@@ -10,7 +10,7 @@ use WP_CLI;
 use XWP\DI\Decorators\CLI_Command;
 use XWP\DI\Decorators\CLI_Handler;
 
-#[CLI_Handler( namespace: 'wc-bulk-ai', description: 'WooCommerce Bulk AI', container: 'wc-bulk-ai' )]
+#[CLI_Handler( namespace: 'product-bulk-agent', description: 'WooCommerce Product Bulk Agent', container: 'wc-bulk-ai' )]
 class Bulk_CLI_Handler {
 
     public function __construct(protected Product_Collector $product_collector, protected Job_Processor $job_processor) {
@@ -20,55 +20,53 @@ class Bulk_CLI_Handler {
      * Create a bulk task run.
      *
      * @param string $task
-     * @param int $limit
-     * @param string $lang
+     * @param array $default_tasks
      */
     #[CLI_Command(
-        command: 'create',
-        summary: 'Create a bulk task run',
+        command: 'create-bulk-task',
+        summary: 'Create a bulk task',
         args: array(
             array(
                 'description' => 'Task',
                 'name'        => 'task',
                 'type'        => 'positional',
                 'var'         => 'task',
-                'optional'    => false,
-            ),
-            array(
-                'description' => 'Limit',
-                'name'        => 'limit',
-                'type'        => 'positional',
-                'var'         => 'limit',
                 'optional'    => true,
-            ),
-            array(
-                'description' => 'Language',
-                'name'        => 'lang',
-                'type'        => 'positional',
-                'var'         => 'lang',
-                'optional'    => true,
-            ),
+                'default'     => '',
+            )
         ),
-        params: array(),
+        params: array('default_tasks' => 'app.default_tasks'),
     )]
-    public function create_bulk_run(string $task, ?int $limit = 10, ?string $lang = 'en'): void {
+    public function create_bulk_run(string $task, array $default_tasks = []): void {
+
+        $limit = (int) CLI_Handler::prompt( 'Enter the number of products to process: (default: 10)' ) ?? 10;
+
         $args = array(
             'limit' => $limit,
-            'lang' => $lang ?? 'en',
+            'lang' => 'en',
         );
         $product_ids = $this->product_collector->collect_ids( $args );
         if (!$product_ids) {
             \WP_CLI::error( 'No matching products found.' );
             return;
         }
-        \WP_CLI::log( 'Found matching' . count( $product_ids ) . ' products.' );
+        \WP_CLI::log( 'Found matching ' . count( $product_ids ) . ' product(s).' );
+
+        if ('' === $task) {
+            $task = CLI_Handler::prompt( 'What task would you like me to perform on these products? (leave empty to select from predefined tasks):' );
+        }
+
+        if ('' === $task) {
+            $task = CLI_Handler::choice( 'Select from predefined tasks', $default_tasks );
+        }
+        
         $run = Run::create( $task );
         foreach ( $product_ids as $product_id ) {
             Job::create( $run->get_id(), $product_id );
         }
         \WP_CLI::log( 'Bulk run created with ID: ' . $run->get_id() );
         \WP_CLI::log( 'Added ' . count( $product_ids ) . ' jobs.' );
-        \WP_CLI::log( 'Use `wc-bulk-ai start` to start this run.' );
+        \WP_CLI::log( 'Use `wp product-bulk-agent start` to start this run.' );
     }
 
     /**
@@ -76,7 +74,7 @@ class Bulk_CLI_Handler {
      */
     #[CLI_Command(
         command: 'start',
-        summary: 'Start the latest bulk run',
+        summary: 'Start the latest bulk task',
         args: array(),
         params: array(),
     )]
