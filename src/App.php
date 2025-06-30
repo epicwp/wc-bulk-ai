@@ -1,9 +1,11 @@
 <?php
 namespace EPICWP\WC_Bulk_AI;
 use EPICWP\WC_Bulk_AI\Handlers\Bulk_CLI_Handler;
+use EPICWP\WC_Bulk_AI\Handlers\Settings_Handler;
 use EPICWP\WC_Bulk_AI\Services\Product_Collector;
 use EPICWP\WC_Bulk_AI\Services\MCP;
 use EPICWP\WC_Bulk_AI\Services\Agent;
+use EPICWP\WC_Bulk_AI\Services\Job_Processor;
 use XWP\DI\Decorators\Module;
 use XWP\DI\Interfaces\On_Initialize;
 
@@ -13,11 +15,13 @@ use XWP\DI\Interfaces\On_Initialize;
     priority: 10,
     handlers: array(
         Bulk_CLI_Handler::class,
+        Settings_Handler::class,
     ),
     services: array(
         Product_Collector::class,
         MCP::class,
         Agent::class,
+        Job_Processor::class,
     ),
 )]
 class App implements On_Initialize {
@@ -29,7 +33,9 @@ class App implements On_Initialize {
      * @return array<string,mixed>
      */
     public static function configure(): array {
-        return array();
+        return array(
+            'app.client' => \OpenAI::client( \get_option( 'wcbai_openai_api_key' ) ),
+        );
     }
 
     public function on_initialize(): void {

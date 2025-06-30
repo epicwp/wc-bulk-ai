@@ -61,6 +61,7 @@ xwp_load_app(
         created_at datetime NOT NULL,
         started_at datetime NOT NULL,
         finished_at datetime NOT NULL,
+        error_message text NOT NULL,
         PRIMARY KEY (id)
     ) $charset_collate;";
     dbDelta( $sql );

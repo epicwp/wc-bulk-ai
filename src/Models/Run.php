@@ -358,5 +358,19 @@ class Run {
             return new Run($run->id);
         }, $runs);
     }
-    
+
+    /**
+     * Get the latest run.
+     *
+     * @return ?Run
+     */
+    public static function get_latest(): ?Run {
+        global $wpdb;
+        $run = $wpdb->get_row(
+            $wpdb->prepare(
+                "SELECT * FROM " . self::get_table_name() . " ORDER BY id DESC LIMIT 1"
+            )
+        );
+        return $run ? new Run($run->id) : null;
+    }
 }

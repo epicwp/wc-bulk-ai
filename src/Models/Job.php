@@ -239,14 +239,15 @@ class Job {
      *
      * @return void
      */
-    public function fail(): void {
+    public function fail( string $error_message = '' ): void {
         global $wpdb;
         $now = \current_time('mysql');
         $wpdb->update(
             self::get_table_name(),
             array(
                 'status' => JobStatus::FAILED->value,
-                'finished_at' => $now
+                'finished_at' => $now,
+                'error_message' => $error_message
             ),
             array('id' => $this->id)
         );

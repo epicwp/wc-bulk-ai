@@ -13,7 +13,7 @@ use XWP\DI\Decorators\CLI_Handler;
 #[CLI_Handler( namespace: 'wc-bulk-ai', description: 'WooCommerce Bulk AI', container: 'wc-bulk-ai' )]
 class Bulk_CLI_Handler {
 
-    public function __construct(protected Product_Collector $product_collector) {
+    public function __construct(protected Product_Collector $product_collector, protected Job_Processor $job_processor) {
     }
 
     /**
@@ -51,14 +51,14 @@ class Bulk_CLI_Handler {
         ),
         params: array(),
     )]
-    public function create_bulk_run(string $task, ?int $limit = -1, ?string $lang = null): void {
+    public function create_bulk_run(string $task, int $limit = 10, string $lang = 'en'): void {
         $args = array(
-            'lang'  => $lang ?? 'en', // TODO: Set to default language from the site without knowing the language.
             'limit' => $limit,
+            'lang' => $lang,
         );
         $product_ids = $this->product_collector->collect_ids( $args );
         if (!$product_ids) {
-            \WP_CLI::error( 'No products found' );
+            \WP_CLI::error( 'No matching products found.' );
             return;
         }
         $run = Run::create( $task );
@@ -78,6 +78,22 @@ class Bulk_CLI_Handler {
         params: array(),
     )]
     public function start_bulk_run(): void {
-        \WP_CLI::log( 'Bulk run started' );
+        $run = Run::get_latest();
+        if ( null === $run ) {
+            \WP_CLI::error( 'No bulk runs found.' );
+            return;
+        }
+        $job = $run->get_next_job();
+        if ( null === $job ) {
+            \WP_CLI::error( 'No jobs found.' );
+            return;
+        }
+        $run->start();
+        while ( null !== $job ) {
+            $this->job_processor->process_job( $job );
+            $job = $run->get_next_job();
+        }
+        $run->complete();
+        \WP_CLI::log( 'Bulk run completed: ' . $run->get_id() );
     }
 }
