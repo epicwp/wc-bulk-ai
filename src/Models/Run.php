@@ -2,6 +2,7 @@
 namespace EPICWP\WC_Bulk_AI\Models;
 
 use DateTime;
+use EPICWP\WC_Bulk_AI\Enums\RunStatus;
 
 class Run {
 
@@ -17,9 +18,9 @@ class Run {
     /**
      * The status of the run.
      *
-     * @var string
+     * @var RunStatus
      */
-    protected string $status;
+    protected RunStatus $status;
 
     /**
      * The creation date of the run.
@@ -77,7 +78,7 @@ class Run {
         }
         
         $this->task = $run->task;
-        $this->status = $run->status;
+        $this->status = RunStatus::from($run->status);
         $this->created_at = new DateTime($run->created_at);
         $this->started_at = $run->started_at ? new DateTime($run->started_at) : null;
         $this->finished_at = $run->finished_at ? new DateTime($run->finished_at) : null;
@@ -110,8 +111,9 @@ class Run {
         global $wpdb;
         $job = $wpdb->get_row(
             $wpdb->prepare(
-                "SELECT * FROM " . Job::get_table_name() . " WHERE run_id = %d ORDER BY id ASC LIMIT 1",
-                $this->id
+                "SELECT * FROM " . Job::get_table_name() . " WHERE run_id = %d AND status = %s ORDER BY id ASC LIMIT 1",
+                $this->id,
+                'pending'
             )
         );
         return $job ? new Job($job->id) : null;
@@ -120,10 +122,136 @@ class Run {
     /**
      * Get the status of the run.
      *
-     * @return string
+     * @return RunStatus
      */
-    public function get_status(): string {
+    public function get_status(): RunStatus {
         return $this->status;
+    }
+
+    /**
+     * Update the status of the run.
+     *
+     * @param RunStatus $status
+     * @return void
+     */
+    public function update_status(RunStatus $status): void {
+        global $wpdb;
+        $wpdb->update(
+            self::get_table_name(),
+            array('status' => $status->value),
+            array('id' => $this->id)
+        );
+        $this->status = $status;
+    }
+
+    /**
+     * Start the run.
+     *
+     * @return void
+     */
+    public function start(): void {
+        global $wpdb;
+        $now = \current_time('mysql');
+        $wpdb->update(
+            self::get_table_name(),
+            array(
+                'status' => RunStatus::RUNNING->value,
+                'started_at' => $now
+            ),
+            array('id' => $this->id)
+        );
+        $this->status = RunStatus::RUNNING;
+        $this->started_at = new DateTime($now);
+    }
+
+    /**
+     * Complete the run.
+     *
+     * @return void
+     */
+    public function complete(): void {
+        global $wpdb;
+        $now = \current_time('mysql');
+        $wpdb->update(
+            self::get_table_name(),
+            array(
+                'status' => RunStatus::COMPLETED->value,
+                'finished_at' => $now
+            ),
+            array('id' => $this->id)
+        );
+        $this->status = RunStatus::COMPLETED;
+        $this->finished_at = new DateTime($now);
+    }
+
+    /**
+     * Fail the run.
+     *
+     * @return void
+     */
+    public function fail(): void {
+        global $wpdb;
+        $now = \current_time('mysql');
+        $wpdb->update(
+            self::get_table_name(),
+            array(
+                'status' => RunStatus::FAILED->value,
+                'finished_at' => $now
+            ),
+            array('id' => $this->id)
+        );
+        $this->status = RunStatus::FAILED;
+        $this->finished_at = new DateTime($now);
+    }
+
+    /**
+     * Cancel the run.
+     *
+     * @return void
+     */
+    public function cancel(): void {
+        global $wpdb;
+        $now = \current_time('mysql');
+        $wpdb->update(
+            self::get_table_name(),
+            array(
+                'status' => RunStatus::CANCELLED->value,
+                'finished_at' => $now
+            ),
+            array('id' => $this->id)
+        );
+        $this->status = RunStatus::CANCELLED;
+        $this->finished_at = new DateTime($now);
+    }
+
+    /**
+     * Pause the run.
+     *
+     * @return void
+     */
+    public function pause(): void {
+        global $wpdb;
+        $wpdb->update(
+            self::get_table_name(),
+            array('status' => RunStatus::PAUSED->value),
+            array('id' => $this->id)
+        );
+        $this->status = RunStatus::PAUSED;
+    }
+
+    /**
+     * Resume a paused run.
+     *
+     * @return void
+     */
+    public function resume(): void {
+        global $wpdb;
+        $wpdb->update(
+            self::get_table_name(),
+            array('status' => RunStatus::RUNNING->value),
+            array('id' => $this->id)
+        );
+        $this->status = RunStatus::RUNNING;
     }
 
     /**
@@ -146,8 +274,9 @@ class Run {
         global $wpdb;
         return $wpdb->get_var(
             $wpdb->prepare(
-                "SELECT COUNT(*) FROM " . Job::get_table_name() . " WHERE run_id = %d AND status = 'completed'",
-                $this->id
+                "SELECT COUNT(*) FROM " . Job::get_table_name() . " WHERE run_id = %d AND status = %s",
+                $this->id,
+                'completed'
             )
         );
     }
@@ -203,10 +332,10 @@ class Run {
     public static function create(string $task): Run {
         global $wpdb;
         $wpdb->insert(
-            $wpdb->prefix . 'wcbai_runs',
+            self::get_table_name(),
             array(
                 'task' => $task,
-                'status' => 'pending',
+                'status' => RunStatus::PENDING->value,
                 'created_at' => \current_time('mysql'),
             )
         );
