@@ -51,7 +51,7 @@ class Bulk_CLI_Handler {
         ),
         params: array(),
     )]
-    public function create_bulk_run(string $task, int $limit = 10, string $lang = 'en'): void {
+    public function create_bulk_run(string $task, ?int $limit = 10, ?string $lang = 'en'): void {
         $args = array(
             'limit' => $limit,
             'lang' => $lang,

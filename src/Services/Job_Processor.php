@@ -28,18 +28,18 @@ class Job_Processor {
             $job->start();
             
             // Perform the task using the AI agent
-            // $success = $this->agent->perform_task( 
-            //     $job->get_task(), 
-            //     $job->get_product_id()
-            // );
+            $success = $this->agent->perform_task( 
+                $job->get_task(), 
+                $job->get_product_id()
+            );
             
-            // if ( $success ) {
-            //     $job->complete();
-            //     return true;
-            // } else {
-            //     $job->fail();
-            //     return false;
-            // }
+            if ( $success ) {
+                $job->complete();
+                return true;
+            } else {
+                $job->fail();
+                return false;
+            }
             
         } catch ( \Exception $e ) {
             $job->fail( $e->getMessage() );
