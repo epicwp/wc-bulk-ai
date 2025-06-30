@@ -6,6 +6,8 @@ use EPICWP\WC_Bulk_AI\Services\Product_Collector;
 use EPICWP\WC_Bulk_AI\Services\MCP;
 use EPICWP\WC_Bulk_AI\Services\Agent;
 use EPICWP\WC_Bulk_AI\Services\Job_Processor;
+use EPICWP\WC_Bulk_AI\Services\Logger\Verbose_Logger;
+use EPICWP\WC_Bulk_AI\Interfaces\Process_Logger;
 use XWP\DI\Decorators\Module;
 use XWP\DI\Interfaces\On_Initialize;
 
@@ -35,6 +37,7 @@ class App implements On_Initialize {
     public static function configure(): array {
         return array(
             'app.client' => \OpenAI::client( \get_option( 'wcbai_openai_api_key' ) ),
+            Process_Logger::class => \DI\autowire(Verbose_Logger::class),
         );
     }
 

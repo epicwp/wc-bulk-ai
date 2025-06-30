@@ -40,7 +40,6 @@ class Job_Processor {
             //     $job->fail();
             //     return false;
             // }
-            return true;
             
         } catch ( \Exception $e ) {
             $job->fail( $e->getMessage() );

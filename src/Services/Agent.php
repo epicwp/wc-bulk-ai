@@ -43,12 +43,11 @@ class Agent {
     /**
      * Constructor
      *
-     * @param Client $client OpenAI client instance
      * @param MCP $mcp MCP service for tool execution
      * @param Process_Logger $logger Logger instance for output
      */
     public function __construct( protected MCP $mcp, protected Process_Logger $logger ) {
-        $this->client = xwp_app('wc-bulk-ai')->get( Client::class );
+        $this->client = xwp_app('wc-bulk-ai')->get( 'app.client' );
         $this->system_prompt = \apply_filters( 
             'wcbai_system_prompt', 
             'You are a WooCommerce product content editor. You have access to tools to get and update product information. Complete the given task using the available tools. When you have completed the task, provide a summary of what was done.' 

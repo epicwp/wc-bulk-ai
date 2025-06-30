@@ -1,5 +1,5 @@
 <?php
-namespace EPICWP\WC_Bulk_AI\Services;
+namespace EPICWP\WC_Bulk_AI\Services\Logger;
 
 use EPICWP\WC_Bulk_AI\Interfaces\Process_Logger;
 use OpenAI\Responses\Chat\CreateResponse;
