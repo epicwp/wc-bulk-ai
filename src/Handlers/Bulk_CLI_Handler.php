@@ -54,18 +54,21 @@ class Bulk_CLI_Handler {
     public function create_bulk_run(string $task, ?int $limit = 10, ?string $lang = 'en'): void {
         $args = array(
             'limit' => $limit,
-            'lang' => $lang,
+            'lang' => $lang ?? 'en',
         );
         $product_ids = $this->product_collector->collect_ids( $args );
         if (!$product_ids) {
             \WP_CLI::error( 'No matching products found.' );
             return;
         }
+        \WP_CLI::log( 'Found matching' . count( $product_ids ) . ' products.' );
         $run = Run::create( $task );
         foreach ( $product_ids as $product_id ) {
             Job::create( $run->get_id(), $product_id );
         }
-        \WP_CLI::log( 'Bulk run created: ' . $run->get_id() );
+        \WP_CLI::log( 'Bulk run created with ID: ' . $run->get_id() );
+        \WP_CLI::log( 'Added ' . count( $product_ids ) . ' jobs.' );
+        \WP_CLI::log( 'Use `wc-bulk-ai start` to start this run.' );
     }
 
     /**

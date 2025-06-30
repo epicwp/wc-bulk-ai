@@ -88,21 +88,19 @@ class Agent {
             // Check if AI wants to call tools
             $tool_calls = $response->choices[0]->message->toolCalls ?? null;
             if ( null !== $tool_calls && count( $tool_calls ) > 0 ) {
-
                 // Add tool calls to assistant message
                 $assistant_message['tool_calls'] = $tool_calls;
                 $this->messages[] = $assistant_message;
 
                 // Logs and executes the tool calls
                 $this->handle_tool_calls( $tool_calls );
-            } 
-
-            // If no tool calls, task is complete
-            if ( null === $tool_calls ) {
-
-                // Add assistant message to conversation
+            } else {
+                // Add assistant message to conversation when no tool calls
                 $this->messages[] = $assistant_message;
+            }
 
+            // Check if task is complete based on finish reason
+            if ( $response->choices[0]->finishReason === 'stop' ) {
                 // Log the last ai response before completing the task
                 $this->logger->log_task_complete( $response->choices[0]->message->content );
                 return true;

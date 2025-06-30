@@ -177,6 +177,69 @@ class MCP {
                     ],
                 ],
             ],
+            [
+                'type' => 'function',
+                'function' => [
+                    'name' => 'get_product_tags',
+                    'description' => 'Get a list of already existing product tags as titles',
+                    'parameters' => [
+                        'type' => 'object',
+                        'properties' => [
+                            'product_id' => [
+                                'type' => 'integer',
+                                'description' => 'The product ID to retrieve tags for',
+                            ],
+                        ],
+                        'required' => ['product_id'],
+                    ],
+                ],
+            ],
+            [
+                'type' => 'function',
+                'function' => [
+                    'name' => 'update_product_tags',
+                    'description' => 'Update a product\'s tags via a list of titles',
+                    'parameters' => [
+                        'type' => 'object',
+                        'properties' => [
+                            'product_id' => [
+                                'type' => 'integer',
+                                'description' => 'The product ID to update tags for',
+                            ],
+                            'tags' => [
+                                'type' => 'array',
+                                'description' => 'The tags as titles to update',
+                                'items' => [
+                                    'type' => 'string'
+                                ]
+                            ],
+                            'append' => [
+                                'type' => 'boolean',
+                                'description' => 'Whether to append the tags to the existing tags or replace them',
+                            ],
+                        ],
+                        'required' => ['product_id', 'tags'],
+                    ],
+                ],
+            ],
+            [
+                'type' => 'function',
+                'function' => [
+                    'name' => 'get_available_product_tags',
+                    'description' => 'Get a list of all available product tags including the title, slug, and ID',
+                    'returns' => [
+                        'type' => 'array',
+                        'items' => [
+                            'type' => 'object',
+                            'properties' => [
+                                'title' => ['type' => 'string'],
+                                'slug' => ['type' => 'string'],
+                                'id' => ['type' => 'integer'],
+                            ],
+                        ],
+                    ],
+                ],
+            ],
         ];
 
         // Register callbacks
@@ -186,6 +249,9 @@ class MCP {
             'update_product_title' => [$this, 'update_product_title'],
             'update_product_description' => [$this, 'update_product_description'],
             'update_product_short_description' => [$this, 'update_product_short_description'],
+            'get_product_tags' => [$this, 'get_product_tags'],
+            'update_product_tags' => [$this, 'update_product_tags'],
+            'get_available_product_tags' => [$this, 'get_available_product_tags'],
         ];
     }
 
@@ -246,5 +312,50 @@ class MCP {
         $product->set_short_description($args['short_description']);
         $product->save();
         return $product;
+    }
+
+    /**
+     * Get a list of product tags as titles
+     *
+     * @param array<string, mixed> $args
+     * @return array<string>
+     */
+    public function get_product_tags(array $args): array {
+        $product = wc_get_product($args['product_id']);
+        $tags = $product->get_tag_ids();
+        $tag_titles = [];
+        foreach ($tags as $tag_id) {
+            $tag_titles[] = get_term_field('name', $tag_id, 'product_tag');
+        }
+        return $tag_titles;
+    }
+
+    /**
+     * Update a product tags
+     *
+     * @param array<string, mixed> $args
+     * @return \WC_Product
+     */
+    public function update_product_tags(array $args): \WC_Product {
+        wp_set_object_terms($args['product_id'], $args['tags'], 'product_tag', $args['append'] ?? false);
+        return wc_get_product($args['product_id']);
+    }
+
+    /**
+     * Get a list of available product tags
+     *
+     * @return array<string>
+     */
+    public function get_available_product_tags(): array {
+        $tags = get_terms('product_tag', array('hide_empty' => false));
+        $available_tags = [];
+        foreach ($tags as $tag) {
+            $available_tags[] = [
+                'title' => $tag->name,
+                'slug' => $tag->slug,
+                'id' => $tag->term_id,
+            ];
+        }
+        return $available_tags;
     }
 }

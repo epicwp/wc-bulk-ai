@@ -87,3 +87,8 @@ xwp_load_app(
     $wpdb->query( "DROP TABLE IF EXISTS {$wpdb->prefix}wcbai_runs" );
 });
 
+// \register_deactivation_hook( __FILE__, function() {
+//     global $wpdb;
+//     $wpdb->query( "DROP TABLE IF EXISTS {$wpdb->prefix}wcbai_jobs" );
+//     $wpdb->query( "DROP TABLE IF EXISTS {$wpdb->prefix}wcbai_runs" );
+// });
