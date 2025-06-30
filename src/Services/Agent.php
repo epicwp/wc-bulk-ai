@@ -45,7 +45,7 @@ class Agent {
         $response = $this->client->chat()->create([
             'model' => 'gpt-4.1',
             'messages' => $messages,
-            'tools' => $this->mcp->get_available_functions(),
+            'tools' => $this->mcp->get_tools(),
         ]);
         return $response;
     }
