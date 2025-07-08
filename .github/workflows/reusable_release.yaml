@@ -78,9 +78,6 @@ jobs:
       - name: Install NPM dependencies
         run: npm clean-install
         if: ${{ inputs.build_assets }}
-      - name: Build
-        run: npm run build:all
-        if: ${{ inputs.build_assets }}
       - name: Create .releaserc
         run: npx @x-wp/semantic-release-config
         if: ${{ steps.releaserc.outputs.files_exists == 'false' }}
