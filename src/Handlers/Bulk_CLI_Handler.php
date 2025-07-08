@@ -92,7 +92,7 @@ class Bulk_CLI_Handler {
      */
     #[CLI_Command(
         command: 'start',
-        summary: 'Start the latest bulk task or select from available runs',
+        summary: 'Start the latest bulk task or select from available tasks',
         args: array(
             array(
                 'default'     => false,
@@ -206,7 +206,7 @@ class Bulk_CLI_Handler {
      */
     #[CLI_Command(
         command: 'list-tasks',
-        summary: 'List all runs with their statistics',
+        summary: 'List all bulk tasks with their statistics',
         args: array(
             array(
                 'default'     => false,
@@ -261,7 +261,7 @@ class Bulk_CLI_Handler {
      */
     #[CLI_Command(
         command: 'rollback-task',
-        summary: 'Rollback all jobs in a run',
+        summary: 'Rollback all jobs in a bulk task',
         args: array(
             array(
                 'default'     => false,
