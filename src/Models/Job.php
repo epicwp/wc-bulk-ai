@@ -104,6 +104,23 @@ class Job {
     }
 
     /**
+     * Get the job by ID.
+     *
+     * @param int $id
+     * @return Job
+     */
+    public static function get_by_id( int $id ): Job {
+        global $wpdb;
+        $row = $wpdb->get_row(
+            $wpdb->prepare( 'SELECT * FROM ' . self::get_table_name() . ' WHERE id = %d', $id ),
+        );
+        if ( ! $row ) {
+            throw new \Exception( \sprintf( 'Job with ID %d not found', $id ) );
+        }
+        return new self( $row->id );
+    }
+
+    /**
      * Constructor. Initializes the job from the database.
      *
      * @param int $id

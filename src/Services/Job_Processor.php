@@ -43,7 +43,10 @@ class Job_Processor {
             return false;
         } catch ( \Exception $e ) {
             $job->fail( $e->getMessage() );
+            $success = false;
             return false;
+        } finally {
+            \do_action( 'wcbai_job_finished', $job, $success );
         }
     }
 }

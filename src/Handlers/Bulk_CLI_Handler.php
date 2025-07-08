@@ -241,6 +241,28 @@ class Bulk_CLI_Handler {
     }
 
     /**
+     * Rollback all jobs in a run.
+     *
+     * @param array $flags
+     */
+    #[CLI_Command(
+        command: 'rollback-task',
+        summary: 'Rollback all jobs in a run',
+        args: array(
+            array(
+                'default'     => false,
+                'description' => 'Force rollback without confirmation prompt',
+                'name'        => 'task-id',
+                'optional'    => true,
+                'type'        => 'flag',
+                'var'         => 'task_id',
+            ),
+        ),
+    )]
+    public function rollback_task( array $flags ): void {
+    }
+
+    /**
      * Format a run for table display.
      *
      * @param Run $run

@@ -10,10 +10,39 @@ use EPICWP\WC_Bulk_AI\Enums\RollbackStatus;
 class Product_Rollback {
     public const TABLE_NAME = 'wcbai_product_rollbacks';
 
+    /**
+     * The job ID.
+     *
+     * @var int
+     */
     protected int $job_id;
+
+    /**
+     * The property.
+     *
+     * @var string
+     */
     protected string $property;
+
+    /**
+     * The previous value.
+     *
+     * @var string
+     */
     protected string $previous_value;
+
+    /**
+     * The status. Applied or unapplied.
+     *
+     * @var RollbackStatus
+     */
     protected RollbackStatus $status;
+
+    /**
+     * The creation date.
+     *
+     * @var DateTime
+     */
     protected DateTime $created_at;
 
     /**
@@ -50,6 +79,29 @@ class Product_Rollback {
             ),
         );
         return new self( $wpdb->insert_id );
+    }
+
+    /**
+     * Get the product rollback by job ID and property.
+     *
+     * @param int    $job_id The job ID.
+     * @param string $property The property.
+     * @return ?Product_Rollback The product rollback object.
+     */
+    public static function get_by_job_id_and_property( int $job_id, string $property ): ?Product_Rollback {
+        global $wpdb;
+        $row = $wpdb->get_row(
+            $wpdb->prepare(
+                'SELECT * FROM ' . self::get_table_name() . ' WHERE job_id = %d AND property = %s AND status = %s',
+                $job_id,
+                $property,
+                RollbackStatus::UNAPPLIED->value,
+            ),
+        );
+        if ( ! $row ) {
+            return null;
+        }
+        return new self( $row->id );
     }
 
     /**
