@@ -1,8 +1,8 @@
 <?php
 /**
- * Plugin Name: WooCommerce Product Agent
- * Description: Update your WooCommerce products in bulk with AI.
- * Version:     1.0.0
+ * Plugin Name: WooCommerce Product Bulk Agent
+ * Description: Update your WooCommerce products in bulk with an AI agent that can work 24/7.
+ * Version:     0.0.0
  *
  * @package EPICWP\WC_Bulk_AI
  */
