@@ -16,6 +16,6 @@ jobs:
     uses: ./.github/workflows/reusable_release.yaml
     with:
       package_slug: wc-bulk-ai
-      php_version: "8.1"
+      php_version: "8.2"
       build_assets: true
     secrets: inherit
