@@ -5,7 +5,6 @@ use DateTime;
 use EPICWP\WC_Bulk_AI\Enums\RunStatus;
 
 class Run {
-
     public const TABLE_NAME = 'wcbai_runs';
 
     /**
@@ -43,12 +42,6 @@ class Run {
      */
     protected ?DateTime $finished_at = null;
 
-    public function __construct(
-        protected int $id,
-    ) {
-        $this->load();
-    }
-
     /**
      * Get the full table name with WordPress prefix
      *
@@ -60,28 +53,105 @@ class Run {
     }
 
     /**
-     * Load the run from the database.
+     * Create a new run.
      *
-     * @return void
+     * @param string $task
+     * @return Run
      */
-    protected function load(): void {
+    public static function create( string $task ): Run {
+        global $wpdb;
+        $wpdb->insert(
+            self::get_table_name(),
+            array(
+                'created_at' => \current_time( 'mysql' ),
+                'status'     => RunStatus::PENDING->value,
+                'task'       => $task,
+            ),
+        );
+        return new Run( $wpdb->insert_id );
+    }
+
+    /**
+     * List all runs.
+     *
+     * @return array<Run>
+     */
+    public static function list(): array {
+        global $wpdb;
+        $runs = $wpdb->get_results(
+            $wpdb->prepare(
+                'SELECT * FROM ' . self::get_table_name() . ' ORDER BY id DESC',
+            ),
+        );
+        return \array_map(
+            static fn( $run ) => new Run( $run->id ),
+            $runs,
+        );
+    }
+
+    /**
+     * Get the latest run.
+     *
+     * @return ?Run
+     */
+    public static function get_latest(): ?Run {
         global $wpdb;
         $run = $wpdb->get_row(
             $wpdb->prepare(
-                "SELECT * FROM " . self::get_table_name() . " WHERE id = %d",
-                $this->id
-            )
+                'SELECT * FROM ' . self::get_table_name() . ' ORDER BY id DESC LIMIT 1',
+            ),
         );
-        
-        if (!$run) {
-            throw new \Exception("Run with ID {$this->id} not found");
-        }
-        
-        $this->task = $run->task;
-        $this->status = RunStatus::from($run->status);
-        $this->created_at = new DateTime($run->created_at);
-        $this->started_at = $run->started_at ? new DateTime($run->started_at) : null;
-        $this->finished_at = $run->finished_at ? new DateTime($run->finished_at) : null;
+        return $run ? new Run( $run->id ) : null;
+    }
+
+    /**
+     * Get available runs (not completed/failed/cancelled).
+     *
+     * @return array<Run>
+     */
+    public static function get_available(): array {
+        global $wpdb;
+        $runs = $wpdb->get_results(
+            $wpdb->prepare(
+                'SELECT * FROM ' . self::get_table_name() . ' WHERE status IN (%s, %s, %s) ORDER BY id DESC',
+                RunStatus::PENDING->value,
+                RunStatus::RUNNING->value,
+                RunStatus::PAUSED->value,
+            ),
+        );
+        return \array_map(
+            static fn( $run ) => new Run( $run->id ),
+            $runs,
+        );
+    }
+
+    /**
+     * Get the total number of runs in the database.
+     *
+     * @return int
+     */
+    public static function get_count(): int {
+        global $wpdb;
+        return (int) $wpdb->get_var( 'SELECT COUNT(*) FROM ' . self::get_table_name() );
+    }
+
+    /**
+     * Clear all runs from the database.
+     *
+     * @return int Number of runs deleted
+     */
+    public static function clear_all(): int {
+        global $wpdb;
+        $count = self::get_count();
+        $wpdb->query( 'DELETE FROM ' . self::get_table_name() );
+        $wpdb->query( 'ALTER TABLE ' . self::get_table_name() . ' AUTO_INCREMENT = 1' );
+        return $count;
+    }
+
+    public function __construct(
+        protected int $id,
+    ) {
+        $this->load();
     }
 
     /**
@@ -111,12 +181,12 @@ class Run {
         global $wpdb;
         $job = $wpdb->get_row(
             $wpdb->prepare(
-                "SELECT * FROM " . Job::get_table_name() . " WHERE run_id = %d AND status = %s ORDER BY id ASC LIMIT 1",
+                'SELECT * FROM ' . Job::get_table_name() . ' WHERE run_id = %d AND status = %s ORDER BY id ASC LIMIT 1',
                 $this->id,
-                'pending'
-            )
+                'pending',
+            ),
         );
-        return $job ? new Job($job->id) : null;
+        return $job ? new Job( $job->id ) : null;
     }
 
     /**
@@ -134,12 +204,12 @@ class Run {
      * @param RunStatus $status
      * @return void
      */
-    public function update_status(RunStatus $status): void {
+    public function update_status( RunStatus $status ): void {
         global $wpdb;
         $wpdb->update(
             self::get_table_name(),
-            array('status' => $status->value),
-            array('id' => $this->id)
+            array( 'status' => $status->value ),
+            array( 'id' => $this->id ),
         );
         $this->status = $status;
     }
@@ -151,17 +221,17 @@ class Run {
      */
     public function start(): void {
         global $wpdb;
-        $now = \current_time('mysql');
+        $now = \current_time( 'mysql' );
         $wpdb->update(
             self::get_table_name(),
             array(
-                'status' => RunStatus::RUNNING->value,
-                'started_at' => $now
+                'started_at' => $now,
+                'status'     => RunStatus::RUNNING->value,
             ),
-            array('id' => $this->id)
+            array( 'id' => $this->id ),
         );
-        $this->status = RunStatus::RUNNING;
-        $this->started_at = new DateTime($now);
+        $this->status     = RunStatus::RUNNING;
+        $this->started_at = new DateTime( $now );
     }
 
     /**
@@ -171,17 +241,17 @@ class Run {
      */
     public function complete(): void {
         global $wpdb;
-        $now = \current_time('mysql');
+        $now = \current_time( 'mysql' );
         $wpdb->update(
             self::get_table_name(),
             array(
-                'status' => RunStatus::COMPLETED->value,
-                'finished_at' => $now
+                'finished_at' => $now,
+                'status'      => RunStatus::COMPLETED->value,
             ),
-            array('id' => $this->id)
+            array( 'id' => $this->id ),
         );
-        $this->status = RunStatus::COMPLETED;
-        $this->finished_at = new DateTime($now);
+        $this->status      = RunStatus::COMPLETED;
+        $this->finished_at = new DateTime( $now );
     }
 
     /**
@@ -191,17 +261,17 @@ class Run {
      */
     public function fail(): void {
         global $wpdb;
-        $now = \current_time('mysql');
+        $now = \current_time( 'mysql' );
         $wpdb->update(
             self::get_table_name(),
             array(
-                'status' => RunStatus::FAILED->value,
-                'finished_at' => $now
+                'finished_at' => $now,
+                'status'      => RunStatus::FAILED->value,
             ),
-            array('id' => $this->id)
+            array( 'id' => $this->id ),
         );
-        $this->status = RunStatus::FAILED;
-        $this->finished_at = new DateTime($now);
+        $this->status      = RunStatus::FAILED;
+        $this->finished_at = new DateTime( $now );
     }
 
     /**
@@ -211,17 +281,17 @@ class Run {
      */
     public function cancel(): void {
         global $wpdb;
-        $now = \current_time('mysql');
+        $now = \current_time( 'mysql' );
         $wpdb->update(
             self::get_table_name(),
             array(
-                'status' => RunStatus::CANCELLED->value,
-                'finished_at' => $now
+                'finished_at' => $now,
+                'status'      => RunStatus::CANCELLED->value,
             ),
-            array('id' => $this->id)
+            array( 'id' => $this->id ),
         );
-        $this->status = RunStatus::CANCELLED;
-        $this->finished_at = new DateTime($now);
+        $this->status      = RunStatus::CANCELLED;
+        $this->finished_at = new DateTime( $now );
     }
 
     /**
@@ -233,8 +303,8 @@ class Run {
         global $wpdb;
         $wpdb->update(
             self::get_table_name(),
-            array('status' => RunStatus::PAUSED->value),
-            array('id' => $this->id)
+            array( 'status' => RunStatus::PAUSED->value ),
+            array( 'id' => $this->id ),
         );
         $this->status = RunStatus::PAUSED;
     }
@@ -248,8 +318,8 @@ class Run {
         global $wpdb;
         $wpdb->update(
             self::get_table_name(),
-            array('status' => RunStatus::RUNNING->value),
-            array('id' => $this->id)
+            array( 'status' => RunStatus::RUNNING->value ),
+            array( 'id' => $this->id ),
         );
         $this->status = RunStatus::RUNNING;
     }
@@ -261,7 +331,7 @@ class Run {
      */
     public function get_progress(): float {
         $progress = $this->get_completed_jobs_count();
-        $total = $this->get_total_jobs_count();
+        $total    = $this->get_total_jobs_count();
         return $total > 0 ? (float) $progress / (float) $total : 0;
     }
 
@@ -274,10 +344,10 @@ class Run {
         global $wpdb;
         return $wpdb->get_var(
             $wpdb->prepare(
-                "SELECT COUNT(*) FROM " . Job::get_table_name() . " WHERE run_id = %d AND status = %s",
+                'SELECT COUNT(*) FROM ' . Job::get_table_name() . ' WHERE run_id = %d AND status = %s',
                 $this->id,
-                'completed'
-            )
+                'completed',
+            ),
         );
     }
 
@@ -290,9 +360,9 @@ class Run {
         global $wpdb;
         return $wpdb->get_var(
             $wpdb->prepare(
-                "SELECT COUNT(*) FROM " . Job::get_table_name() . " WHERE run_id = %d",
-                $this->id
-            )
+                'SELECT COUNT(*) FROM ' . Job::get_table_name() . ' WHERE run_id = %d',
+                $this->id,
+            ),
         );
     }
 
@@ -324,53 +394,49 @@ class Run {
     }
 
     /**
-     * Create a new run.
+     * Get a formatted string for CLI display showing ID, progress, and task.
      *
-     * @param string $task
-     * @return Run
+     * @return string
      */
-    public static function create(string $task): Run {
-        global $wpdb;
-        $wpdb->insert(
-            self::get_table_name(),
-            array(
-                'task' => $task,
-                'status' => RunStatus::PENDING->value,
-                'created_at' => \current_time('mysql'),
-            )
+    public function get_display_string(): string {
+        $progress  = \round( $this->get_progress() * 100, 1 );
+        $completed = $this->get_completed_jobs_count();
+        $total     = $this->get_total_jobs_count();
+        $status    = $this->get_status()->value;
+
+        return \sprintf(
+            'Run #%d [%s] - %s%% (%d/%d jobs) - "%s"',
+            $this->get_id(),
+            \strtoupper( $status ),
+            $progress,
+            $completed,
+            $total,
+            $this->get_task(),
         );
-        return new Run($wpdb->insert_id);
     }
 
     /**
-     * List all runs.
+     * Load the run from the database.
      *
-     * @return array<Run>
+     * @return void
      */
-    public static function list(): array {
-        global $wpdb;
-        $runs = $wpdb->get_results(
-            $wpdb->prepare(
-                "SELECT * FROM " . self::get_table_name() . " ORDER BY id DESC"
-            )
-        );
-        return array_map(function($run) {
-            return new Run($run->id);
-        }, $runs);
-    }
-
-    /**
-     * Get the latest run.
-     *
-     * @return ?Run
-     */
-    public static function get_latest(): ?Run {
+    protected function load(): void {
         global $wpdb;
         $run = $wpdb->get_row(
             $wpdb->prepare(
-                "SELECT * FROM " . self::get_table_name() . " ORDER BY id DESC LIMIT 1"
-            )
+                'SELECT * FROM ' . self::get_table_name() . ' WHERE id = %d',
+                $this->id,
+            ),
         );
-        return $run ? new Run($run->id) : null;
+
+        if ( ! $run ) {
+            throw new \Exception( "Run with ID {$this->id} not found" );
+        }
+
+        $this->task        = $run->task;
+        $this->status      = RunStatus::from( $run->status );
+        $this->created_at  = new DateTime( $run->created_at );
+        $this->started_at  = $run->started_at ? new DateTime( $run->started_at ) : null;
+        $this->finished_at = $run->finished_at ? new DateTime( $run->finished_at ) : null;
     }
 }

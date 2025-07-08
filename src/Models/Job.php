@@ -5,7 +5,6 @@ use DateTime;
 use EPICWP\WC_Bulk_AI\Enums\JobStatus;
 
 class Job {
-
     public const TABLE_NAME = 'wcbai_jobs';
 
     /**
@@ -51,17 +50,6 @@ class Job {
     protected ?DateTime $finished_at = null;
 
     /**
-     * Constructor. Initializes the job from the database.
-     *
-     * @param int $id
-     */
-    public function __construct(
-        protected int $id,
-    ) {
-        $this->load();
-    }
-
-    /**
      * Get the full table name with WordPress prefix
      *
      * @return string
@@ -72,29 +60,58 @@ class Job {
     }
 
     /**
-     * Load the job from the database.
+     * Create a new job.
      *
-     * @return void
+     * @param int $run_id
+     * @param int $product_id
+     * @return Job
      */
-    protected function load(): void {
+    public static function create( int $run_id, int $product_id ): Job {
         global $wpdb;
-        $job = $wpdb->get_row(
-            $wpdb->prepare(
-                "SELECT * FROM " . self::get_table_name() . " WHERE id = %d",
-                $this->id
-            )
+        $wpdb->insert(
+            self::get_table_name(),
+            array(
+                'created_at' => \current_time( 'mysql' ),
+                'product_id' => $product_id,
+                'run_id'     => $run_id,
+                'status'     => JobStatus::PENDING->value,
+            ),
         );
-        
-        if (!$job) {
-            throw new \Exception("Job with ID {$this->id} not found");
-        }
-        
-        $this->status = JobStatus::from($job->status);
-        $this->product_id = $job->product_id;
-        $this->run_id = $job->run_id;
-        $this->created_at = new DateTime($job->created_at);
-        $this->started_at = $job->started_at ? new DateTime($job->started_at) : null;
-        $this->finished_at = $job->finished_at ? new DateTime($job->finished_at) : null;
+        return new Job( $wpdb->insert_id );
+    }
+
+    /**
+     * Get the total number of jobs in the database.
+     *
+     * @return int
+     */
+    public static function get_count(): int {
+        global $wpdb;
+        return (int) $wpdb->get_var( 'SELECT COUNT(*) FROM ' . self::get_table_name() );
+    }
+
+    /**
+     * Clear all jobs from the database.
+     *
+     * @return int Number of jobs deleted
+     */
+    public static function clear_all(): int {
+        global $wpdb;
+        $count = self::get_count();
+        $wpdb->query( 'DELETE FROM ' . self::get_table_name() );
+        $wpdb->query( 'ALTER TABLE ' . self::get_table_name() . ' AUTO_INCREMENT = 1' );
+        return $count;
+    }
+
+    /**
+     * Constructor. Initializes the job from the database.
+     *
+     * @param int $id
+     */
+    public function __construct(
+        protected int $id,
+    ) {
+        $this->load();
     }
 
     /**
@@ -130,7 +147,7 @@ class Job {
      * @return string
      */
     public function get_task(): string {
-        $run = new Run($this->run_id);
+        $run = new Run( $this->run_id );
         return $run->get_task();
     }
 
@@ -167,12 +184,12 @@ class Job {
      * @param JobStatus $status
      * @return void
      */
-    public function update_status(JobStatus $status): void {
+    public function update_status( JobStatus $status ): void {
         global $wpdb;
         $wpdb->update(
             self::get_table_name(),
-            array('status' => $status->value),
-            array('id' => $this->id)
+            array( 'status' => $status->value ),
+            array( 'id' => $this->id ),
         );
         $this->status = $status;
     }
@@ -184,17 +201,17 @@ class Job {
      */
     public function start(): void {
         global $wpdb;
-        $now = \current_time('mysql');
+        $now = \current_time( 'mysql' );
         $wpdb->update(
             self::get_table_name(),
             array(
-                'status' => JobStatus::RUNNING->value,
-                'started_at' => $now
+                'started_at' => $now,
+                'status'     => JobStatus::RUNNING->value,
             ),
-            array('id' => $this->id)
+            array( 'id' => $this->id ),
         );
-        $this->status = JobStatus::RUNNING;
-        $this->started_at = new DateTime($now);
+        $this->status     = JobStatus::RUNNING;
+        $this->started_at = new DateTime( $now );
     }
 
     /**
@@ -204,14 +221,17 @@ class Job {
      */
     public function cancel(): void {
         global $wpdb;
-        $now = \current_time('mysql');
+        $now = \current_time( 'mysql' );
         $wpdb->update(
             self::get_table_name(),
-            array( 'status' => JobStatus::CANCELLED->value, 'finished_at' => $now ),
-            array( 'id' => $this->id )
+            array(
+                'finished_at' => $now,
+                'status'      => JobStatus::CANCELLED->value,
+            ),
+            array( 'id' => $this->id ),
         );
-        $this->status = JobStatus::CANCELLED;
-        $this->finished_at = new DateTime($now);
+        $this->status      = JobStatus::CANCELLED;
+        $this->finished_at = new DateTime( $now );
     }
 
     /**
@@ -221,17 +241,17 @@ class Job {
      */
     public function complete(): void {
         global $wpdb;
-        $now = \current_time('mysql');
+        $now = \current_time( 'mysql' );
         $wpdb->update(
             self::get_table_name(),
             array(
-                'status' => JobStatus::COMPLETED->value,
-                'finished_at' => $now
+                'finished_at' => $now,
+                'status'      => JobStatus::COMPLETED->value,
             ),
-            array('id' => $this->id)
+            array( 'id' => $this->id ),
         );
-        $this->status = JobStatus::COMPLETED;
-        $this->finished_at = new DateTime($now);
+        $this->status      = JobStatus::COMPLETED;
+        $this->finished_at = new DateTime( $now );
     }
 
     /**
@@ -241,38 +261,43 @@ class Job {
      */
     public function fail( string $error_message = '' ): void {
         global $wpdb;
-        $now = \current_time('mysql');
+        $now = \current_time( 'mysql' );
         $wpdb->update(
             self::get_table_name(),
             array(
-                'status' => JobStatus::FAILED->value,
-                'finished_at' => $now,
-                'error_message' => $error_message
+                'error_message' => $error_message,
+                'finished_at'   => $now,
+                'status'        => JobStatus::FAILED->value,
             ),
-            array('id' => $this->id)
+            array( 'id' => $this->id ),
         );
-        $this->status = JobStatus::FAILED;
-        $this->finished_at = new DateTime($now);
+        $this->status      = JobStatus::FAILED;
+        $this->finished_at = new DateTime( $now );
     }
 
     /**
-     * Create a new job.
+     * Load the job from the database.
      *
-     * @param int $run_id
-     * @param int $product_id
-     * @return Job
+     * @return void
      */
-    public static function create(int $run_id, int $product_id): Job {
+    protected function load(): void {
         global $wpdb;
-        $wpdb->insert(
-            self::get_table_name(),
-            array(
-                'run_id' => $run_id,
-                'product_id' => $product_id,
-                'status' => JobStatus::PENDING->value,
-                'created_at' => \current_time('mysql'),
-            )
+        $job = $wpdb->get_row(
+            $wpdb->prepare(
+                'SELECT * FROM ' . self::get_table_name() . ' WHERE id = %d',
+                $this->id,
+            ),
         );
-        return new Job($wpdb->insert_id);
+
+        if ( ! $job ) {
+            throw new \Exception( "Job with ID {$this->id} not found" );
+        }
+
+        $this->status      = JobStatus::from( $job->status );
+        $this->product_id  = $job->product_id;
+        $this->run_id      = $job->run_id;
+        $this->created_at  = new DateTime( $job->created_at );
+        $this->started_at  = $job->started_at ? new DateTime( $job->started_at ) : null;
+        $this->finished_at = $job->finished_at ? new DateTime( $job->finished_at ) : null;
     }
-}   
+}

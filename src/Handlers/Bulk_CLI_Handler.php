@@ -84,20 +84,49 @@ class Bulk_CLI_Handler {
     }
 
     /**
-     * Start the latest bulk run.
+     * Start the latest bulk run or select from available runs.
+     *
+     * @param array $flags
      */
-    #[CLI_Command( command: 'start', summary: 'Start the latest bulk task', args: array(), params: array() )]
-    public function start_bulk_run(): void {
-        $run = Run::get_latest();
+    #[CLI_Command(
+        command: 'start',
+        summary: 'Start the latest bulk task or select from available runs',
+        args: array(
+            array(
+                'default'     => false,
+                'description' => 'Show a selection of available runs to choose from',
+                'name'        => 'select',
+                'optional'    => true,
+                'type'        => 'flag',
+                'var'         => 'select',
+            ),
+        ),
+        params: array(),
+    )]
+    public function start_bulk_run( array $flags ): void {
+        $select_mode = $flags['select'] ?? false;
+
+        $run = $select_mode ? $this->select_run_from_available() : Run::get_latest();
+
         if ( null === $run ) {
             \WP_CLI::error( 'No bulk runs found.' );
             return;
         }
-        $job = $run->get_next_job();
-        if ( null === $job ) {
-            \WP_CLI::error( 'No jobs found.' );
+
+        // Check if run is in a final state
+        if ( $run->get_status()->isFinal() ) {
+            \WP_CLI::error( 'Selected run is already completed, failed, or cancelled.' );
             return;
         }
+
+        $job = $run->get_next_job();
+        if ( null === $job ) {
+            \WP_CLI::error( 'No pending jobs found in this run.' );
+            return;
+        }
+
+        \WP_CLI::log( 'Starting run: ' . $run->get_display_string() );
+
         $run->start();
         while ( null !== $job ) {
             $this->job_processor->process_job( $job );
@@ -105,6 +134,55 @@ class Bulk_CLI_Handler {
         }
         $run->complete();
         \WP_CLI::log( 'Bulk run completed: ' . $run->get_id() );
+    }
+
+    /**
+     * Clear all runs and jobs from the database.
+     *
+     * @param array $flags
+     */
+    #[CLI_Command(
+        command: 'clear',
+        summary: 'Clear all runs and jobs from the database',
+        args: array(
+            array(
+                'default'     => false,
+                'description' => 'Force clear without confirmation prompt',
+                'name'        => 'force',
+                'optional'    => true,
+                'type'        => 'flag',
+                'var'         => 'force',
+            ),
+        ),
+        params: array(),
+    )]
+    public function clear_runs( array $flags ): void {
+        $force = $flags['force'] ?? false;
+
+        // Get counts before clearing
+        $runs_count = Run::get_count();
+        $jobs_count = Job::get_count();
+
+        if ( 0 === $runs_count && 0 === $jobs_count ) {
+            \WP_CLI::success( 'Database is already empty. No runs or jobs to clear.' );
+            return;
+        }
+
+        // Show what will be cleared
+        \WP_CLI::log( 'This will clear:' );
+        \WP_CLI::log( "- {$runs_count} run(s)" );
+        \WP_CLI::log( "- {$jobs_count} job(s)" );
+
+        // Confirmation prompt unless forced
+        if ( ! $force ) {
+            \WP_CLI::confirm( 'Are you sure you want to clear all runs and jobs? This cannot be undone.' );
+        }
+
+        // Clear the tables (jobs first due to foreign key constraints)
+        $cleared_jobs = Job::clear_all();
+        $cleared_runs = Run::clear_all();
+
+        \WP_CLI::success( "Cleared {$cleared_runs} run(s) and {$cleared_jobs} job(s) from the database." );
     }
 
     /**
@@ -192,5 +270,39 @@ class Bulk_CLI_Handler {
 
         $product_ids = $this->product_collector->collect_ids( $args );
         return $product_ids;
+    }
+
+    /**
+     * Select a run from available runs.
+     *
+     * @return Run|null
+     */
+    protected function select_run_from_available(): ?Run {
+        $available_runs = Run::get_available();
+
+        if ( empty( $available_runs ) ) {
+            \WP_CLI::error( 'No available runs found.' );
+            return null;
+        }
+
+        // Create choices array with display strings (indexed by position)
+        $choices = array();
+        foreach ( $available_runs as $run ) {
+            $choices[] = $run->get_display_string();
+        }
+
+        \WP_CLI::log( 'Available runs:' );
+
+        $selected_display_string = CLI_Handler::choice( 'Select a run to start:', $choices );
+
+        // Find the run that matches the selected display string
+        foreach ( $available_runs as $run ) {
+            if ( $run->get_display_string() === $selected_display_string ) {
+                return $run;
+            }
+        }
+
+        \WP_CLI::error( 'Could not find the selected run.' );
+        return null;
     }
 }

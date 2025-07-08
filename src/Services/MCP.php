@@ -57,9 +57,16 @@ class MCP {
      *
      * @param  array<string, mixed> $args
      * @return \WC_Product
+     * @throws \Exception
      */
     public function get_product( array $args ): \WC_Product {
-        return \wc_get_product( $args['product_id'] );
+        $product = \wc_get_product( $args['product_id'] );
+
+        if ( false === $product ) {
+            throw new \Exception( "Product with ID {$args['product_id']} not found or does not exist." );
+        }
+
+        return $product;
     }
 
     /**
