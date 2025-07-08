@@ -91,12 +91,6 @@
       }
     ],
     [
-      "@semantic-release/exec",
-      {
-        "prepareCmd": "node scripts/update-release-json.js ${nextRelease.version} \"${nextRelease.notes}\""
-      }
-    ],
-    [
       "@semantic-release/wordpress",
       {
         "slug": "wc-bulk-ai",
