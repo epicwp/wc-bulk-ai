@@ -72,6 +72,14 @@ class Run {
         return new Run( $wpdb->insert_id );
     }
 
+    public static function get_by_id( int $id ): ?Run {
+        global $wpdb;
+        $run = $wpdb->get_row(
+            $wpdb->prepare( 'SELECT * FROM ' . self::get_table_name() . ' WHERE id = %d', $id ),
+        );
+        return $run ? new Run( $run->id ) : null;
+    }
+
     /**
      * List all runs.
      *
@@ -188,6 +196,19 @@ class Run {
             ),
         );
         return $job ? new Job( $job->id ) : null;
+    }
+
+    /**
+     * Get the job IDs of the run.
+     *
+     * @return array<int>
+     */
+    public function get_job_ids(): array {
+        global $wpdb;
+        $job_ids = $wpdb->get_col(
+            $wpdb->prepare( 'SELECT id FROM ' . Job::get_table_name() . ' WHERE run_id = %d', $this->id ),
+        );
+        return \array_map( static fn( $job_id ) => (int) $job_id, $job_ids );
     }
 
     /**

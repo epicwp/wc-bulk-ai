@@ -96,7 +96,7 @@ class MCP {
      */
     public function update_product_title( array $args ): \WC_Product {
         $product = \wc_get_product( $args['product_id'] );
-        $product->set_name( $args['title'] );
+        $product->set_name( $args['value'] );
         $product->save();
         return $product;
     }
@@ -109,7 +109,7 @@ class MCP {
      */
     public function update_product_description( array $args ): \WC_Product {
         $product = \wc_get_product( $args['product_id'] );
-        $product->set_description( $args['description'] );
+        $product->set_description( $args['value'] );
         $product->save();
         return $product;
     }
@@ -122,7 +122,7 @@ class MCP {
      */
     public function update_product_short_description( array $args ): \WC_Product {
         $product = \wc_get_product( $args['product_id'] );
-        $product->set_short_description( $args['short_description'] );
+        $product->set_short_description( $args['value'] );
         $product->save();
         return $product;
     }
@@ -150,7 +150,7 @@ class MCP {
      * @return \WC_Product
      */
     public function update_product_tags( array $args ): \WC_Product {
-        \wp_set_object_terms( $args['product_id'], $args['tags'], 'product_tag', $args['append'] ?? false );
+        \wp_set_object_terms( $args['product_id'], $args['value'], 'product_tag', $args['append'] ?? false );
         return \wc_get_product( $args['product_id'] );
     }
 
@@ -276,7 +276,7 @@ class MCP {
                                 'description' => 'The product ID to update',
                                 'type'        => 'integer',
                             ),
-                            'title'      => array(
+                            'value'      => array(
                                 'description' => 'The new title for the product',
                                 'type'        => 'string',
                             ),
@@ -293,13 +293,13 @@ class MCP {
                     'name'        => 'update_product_description',
                     'parameters'  => array(
                         'properties' => array(
-                            'description' => array(
-                                'description' => 'The new description for the product',
-                                'type'        => 'string',
-                            ),
-                            'product_id'  => array(
+                            'product_id' => array(
                                 'description' => 'The product ID to update',
                                 'type'        => 'integer',
+                            ),
+                            'value'      => array(
+                                'description' => 'The new description for the product',
+                                'type'        => 'string',
                             ),
                         ),
                         'required'   => array( 'product_id', 'description' ),
@@ -314,11 +314,11 @@ class MCP {
                     'name'        => 'update_product_short_description',
                     'parameters'  => array(
                         'properties' => array(
-                            'product_id'        => array(
+                            'product_id' => array(
                                 'description' => 'The product ID to update',
                                 'type'        => 'integer',
                             ),
-                            'short_description' => array(
+                            'value'      => array(
                                 'description' => 'The new short description for the product',
                                 'type'        => 'string',
                             ),
@@ -360,7 +360,7 @@ class MCP {
                                 'description' => 'The product ID to update tags for',
                                 'type'        => 'integer',
                             ),
-                            'tags'       => array(
+                            'value'      => array(
                                 'description' => 'The tags as titles to update',
                                 'items'       => array(
                                     'type' => 'string',

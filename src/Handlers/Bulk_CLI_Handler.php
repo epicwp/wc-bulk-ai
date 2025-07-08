@@ -2,9 +2,11 @@
 namespace EPICWP\WC_Bulk_AI\Handlers;
 
 use EPICWP\WC_Bulk_AI\Models\Job;
+use EPICWP\WC_Bulk_AI\Models\Product_Rollback;
 use EPICWP\WC_Bulk_AI\Models\Run;
 use EPICWP\WC_Bulk_AI\Services\Job_Processor;
 use EPICWP\WC_Bulk_AI\Services\Product_Collector;
+use EPICWP\WC_Bulk_AI\Services\Rollback_Service;
 use WP_CLI;
 use XWP\DI\Decorators\CLI_Command;
 use XWP\DI\Decorators\CLI_Handler;
@@ -15,7 +17,7 @@ use XWP\DI\Decorators\CLI_Handler;
     container: 'wc-bulk-ai',
 )]
 class Bulk_CLI_Handler {
-    public function __construct( protected Product_Collector $product_collector, protected Job_Processor $job_processor ) {
+    public function __construct( protected Product_Collector $product_collector, protected Job_Processor $job_processor, protected Rollback_Service $rollback_service ) {
     }
 
     /**
@@ -26,7 +28,7 @@ class Bulk_CLI_Handler {
      * @param array  $default_tasks
      */
     #[CLI_Command(
-        command: 'create-bulk-task',
+        command: 'create-task',
         summary: 'Create a bulk task',
         args: array(
             array(
@@ -165,10 +167,11 @@ class Bulk_CLI_Handler {
         $force = $flags['force'] ?? false;
 
         // Get counts before clearing
-        $runs_count = Run::get_count();
-        $jobs_count = Job::get_count();
+        $runs_count      = Run::get_count();
+        $jobs_count      = Job::get_count();
+        $rollbacks_count = Product_Rollback::get_count();
 
-        if ( 0 === $runs_count && 0 === $jobs_count ) {
+        if ( 0 === $runs_count && 0 === $jobs_count && 0 === $rollbacks_count ) {
             \WP_CLI::success( 'Database is already empty. No runs or jobs to clear.' );
             return;
         }
@@ -177,17 +180,23 @@ class Bulk_CLI_Handler {
         \WP_CLI::log( 'This will clear:' );
         \WP_CLI::log( "- {$runs_count} run(s)" );
         \WP_CLI::log( "- {$jobs_count} job(s)" );
+        \WP_CLI::log( "- {$rollbacks_count} rollback(s)" );
 
         // Confirmation prompt unless forced
         if ( ! $force ) {
-            \WP_CLI::confirm( 'Are you sure you want to clear all runs and jobs? This cannot be undone.' );
+            \WP_CLI::confirm(
+                'Are you sure you want to clear all runs, jobs and rollbacks? This cannot be undone.',
+            );
         }
 
         // Clear the tables (jobs first due to foreign key constraints)
-        $cleared_jobs = Job::clear_all();
-        $cleared_runs = Run::clear_all();
+        $cleared_jobs      = Job::clear_all();
+        $cleared_runs      = Run::clear_all();
+        $cleared_rollbacks = Product_Rollback::clear_all();
 
-        \WP_CLI::success( "Cleared {$cleared_runs} run(s) and {$cleared_jobs} job(s) from the database." );
+        \WP_CLI::success(
+            "Cleared {$cleared_runs} run(s), {$cleared_jobs} job(s) and {$cleared_rollbacks} rollback(s) from the database.",
+        );
     }
 
     /**
@@ -196,7 +205,7 @@ class Bulk_CLI_Handler {
      * @param array $flags
      */
     #[CLI_Command(
-        command: 'list',
+        command: 'list-tasks',
         summary: 'List all runs with their statistics',
         args: array(
             array(
@@ -259,12 +268,27 @@ class Bulk_CLI_Handler {
                 'description' => 'Force rollback without confirmation prompt',
                 'name'        => 'task-id',
                 'optional'    => true,
-                'type'        => 'flag',
-                'var'         => 'task_id',
+                'type'        => 'positional',
+                'var'         => 'run_id',
             ),
         ),
     )]
-    public function rollback_task( array $flags ): void {
+    public function rollback_run( int $run_id ): void {
+        $run = Run::get_by_id( $run_id );
+        if ( null === $run ) {
+            \WP_CLI::error( 'Run not found.' );
+            return;
+        }
+
+        $job_ids = $run->get_job_ids();
+        if ( ! $job_ids ) {
+            \WP_CLI::error( 'No jobs found in this run.' );
+            return;
+        }
+
+        foreach ( $job_ids as $job_id ) {
+            $this->rollback_service->apply_product_rollback( $job_id );
+        }
     }
 
     /**

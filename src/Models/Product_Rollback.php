@@ -85,24 +85,42 @@ class Product_Rollback {
     /**
      * Get the product rollback by job ID and property.
      *
-     * @param int    $job_id The job ID.
-     * @param string $property The property.
-     * @return ?Product_Rollback The product rollback object.
+     * @param int $job_id The job ID.
+     * @return array<Product_Rollback> The product rollback objects.
      */
-    public static function get_by_job_id_and_property( int $job_id, string $property ): ?Product_Rollback {
+    public static function get_by_job_id( int $job_id ): array {
         global $wpdb;
-        $row = $wpdb->get_row(
+        $ids = $wpdb->get_col(
             $wpdb->prepare(
-                'SELECT * FROM ' . self::get_table_name() . ' WHERE job_id = %d AND property = %s AND status = %s',
+                'SELECT id FROM ' . self::get_table_name() . ' WHERE job_id = %d AND status != %s',
                 $job_id,
-                $property,
-                RollbackStatus::UNAPPLIED->value,
+                RollbackStatus::APPLIED->value,
             ),
         );
-        if ( ! $row ) {
-            return null;
-        }
-        return new self( $row->id );
+        return \array_map( static fn( $id ) => new self( (int) $id ), $ids );
+    }
+
+    /**
+     * Clear all product rollbacks.
+     *
+     * @return int The number of cleared product rollbacks.
+     */
+    public static function clear_all(): int {
+        global $wpdb;
+        $count = self::get_count();
+        $wpdb->query( 'DELETE FROM ' . self::get_table_name() );
+        $wpdb->query( 'ALTER TABLE ' . self::get_table_name() . ' AUTO_INCREMENT = 1' );
+        return $count;
+    }
+
+    /**
+     * Get the total number of product rollbacks in the database.
+     *
+     * @return int
+     */
+    public static function get_count(): int {
+        global $wpdb;
+        return (int) $wpdb->get_var( 'SELECT COUNT(*) FROM ' . self::get_table_name() );
     }
 
     /**
@@ -111,6 +129,7 @@ class Product_Rollback {
      * @param int $id The ID of the product rollback.
      */
     protected function __construct( protected int $id ) {
+        $this->load();
     }
 
     /**
@@ -124,7 +143,7 @@ class Product_Rollback {
         $this->job_id         = $row->job_id;
         $this->property       = $row->property;
         $this->previous_value = $row->previous_value;
-        $this->created_at     = $row->created_at;
+        $this->created_at     = new DateTime( $row->created_at );
     }
 
     /**
@@ -192,7 +211,7 @@ class Product_Rollback {
         global $wpdb;
         $wpdb->update(
             self::get_table_name(),
-            array( 'status' => $status ),
+            array( 'status' => $status->value ),
             array( 'id' => $this->id ),
         );
     }
