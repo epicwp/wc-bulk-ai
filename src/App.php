@@ -2,6 +2,7 @@
 namespace EPICWP\WC_Bulk_AI;
 
 use EPICWP\WC_Bulk_AI\Handlers\Bulk_CLI_Handler;
+use EPICWP\WC_Bulk_AI\Handlers\Rollback_Handler;
 use EPICWP\WC_Bulk_AI\Handlers\Settings_Handler;
 use EPICWP\WC_Bulk_AI\Interfaces\Process_Logger;
 use EPICWP\WC_Bulk_AI\Services\Agent;
@@ -9,6 +10,7 @@ use EPICWP\WC_Bulk_AI\Services\Job_Processor;
 use EPICWP\WC_Bulk_AI\Services\Logger\Verbose_Logger;
 use EPICWP\WC_Bulk_AI\Services\MCP;
 use EPICWP\WC_Bulk_AI\Services\Product_Collector;
+use EPICWP\WC_Bulk_AI\Services\Rollback_Service;
 use EPICWP\WC_Bulk_AI\Services\Task_Manager;
 use XWP\DI\Decorators\Module;
 use XWP\DI\Interfaces\On_Initialize;

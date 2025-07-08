@@ -106,8 +106,11 @@ xwp_load_app(
     },
 );
 
-// \register_deactivation_hook( __FILE__, function() {
+// \register_deactivation_hook(
+// __FILE__,
+// static function () {
 // global $wpdb;
 // $wpdb->query( "DROP TABLE IF EXISTS {$wpdb->prefix}wcbai_jobs" );
 // $wpdb->query( "DROP TABLE IF EXISTS {$wpdb->prefix}wcbai_runs" );
-// });
+// },
+// );

@@ -132,6 +132,15 @@ class Job {
     }
 
     /**
+     * Get the ID of the job.
+     *
+     * @return int
+     */
+    public function get_id(): int {
+        return $this->id;
+    }
+
+    /**
      * Get the status of the job.
      *
      * @return JobStatus

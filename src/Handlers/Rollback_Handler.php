@@ -1,5 +1,4 @@
 <?php
-
 namespace EPICWP\WC_Bulk_AI\Handlers;
 
 use EPICWP\WC_Bulk_AI\Enums\ProductProperty;
@@ -12,15 +11,16 @@ use XWP\DI\Decorators\Handler;
 /**
  * Rollback handler.
  */
-#[Handler( tag: 'init', priority: 10 )]
+#[Handler( tag: 'init', priority: 10, container: 'wc-bulk-ai' )]
 class Rollback_Handler {
     const TRANSIENT_EXPIRATION = 60;
-    const TRANSIENT_PREFIX     = 'wcbai_current_job_processing_';
+    const TRANSIENT_KEY        = 'wcbai_current_job_processing';
 
     /**
      * Constructor.
      *
      * @param Rollback_Service $rollback_service The rollback service.
+     * @param MCP              $mcp              The MCP service.
      */
     public function __construct( protected Rollback_Service $rollback_service, protected MCP $mcp ) {
     }
@@ -41,12 +41,17 @@ class Rollback_Handler {
         ),
     )]
     public function handle_before_execute( string $function_name, array $arguments ): void {
-        $current_job_id = $this->get_current_job_processing( $arguments['job_id'] );
+        $current_job_id = $this->get_current_job_processing();
         if ( ! $current_job_id ) {
             return;
         }
 
-        $property          = ProductProperty::getByMethodName( $function_name );
+        $property = ProductProperty::getByMethodName( $function_name );
+
+        if ( ! $property ) {
+            return;
+        }
+
         $fetch_method_name = $property->getFetchMethodName();
         $product_id        = Job::get_by_id( $current_job_id )->get_product_id();
         $previous_value    = $this->mcp->execute_function(
@@ -67,11 +72,11 @@ class Rollback_Handler {
      */
     #[Action( tag: 'wcbai_job_finished', priority: 10, params: array( 'job' => 'job' ) )]
     public function handle_job_finished( Job $job ): void {
-        $current_job_id = $this->get_current_job_processing( $job->get_id() );
+        $current_job_id = $this->get_current_job_processing();
         if ( ! $current_job_id ) {
             return;
         }
-        $this->unset_current_job_processing( $current_job_id );
+        $this->unset_current_job_processing();
     }
 
     /**
@@ -91,8 +96,8 @@ class Rollback_Handler {
      * @param int $job_id The job ID.
      * @return void
      */
-    public function set_current_job_processing( int $job_id ) {
-        \set_transient( self::TRANSIENT_PREFIX . $job_id, 1, self::TRANSIENT_EXPIRATION );
+    public function set_current_job_processing( int $job_id ): void {
+        \set_transient( self::TRANSIENT_KEY, $job_id, self::TRANSIENT_EXPIRATION );
     }
 
     /**
@@ -100,8 +105,8 @@ class Rollback_Handler {
      *
      * @return int|null
      */
-    public function get_current_job_processing( int $job_id ): bool {
-        return \get_transient( self::TRANSIENT_PREFIX . $job_id );
+    public function get_current_job_processing(): ?int {
+        return (int) \get_transient( self::TRANSIENT_KEY ) ?: null;
     }
 
     /**
@@ -110,7 +115,7 @@ class Rollback_Handler {
      * @param int $job_id The job ID.
      * @return void
      */
-    public function unset_current_job_processing( int $job_id ) {
-        \delete_transient( self::TRANSIENT_PREFIX . $job_id );
+    public function unset_current_job_processing(): void {
+        \delete_transient( self::TRANSIENT_KEY );
     }
 }

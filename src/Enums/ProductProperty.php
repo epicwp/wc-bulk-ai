@@ -7,12 +7,13 @@ enum ProductProperty: string {
     case SHORT_DESCRIPTION = 'short_description';
     case TAGS              = 'tags';
 
-    public static function getByMethodName( string $method_name ): self {
+    public static function getByMethodName( string $method_name ): ?self {
         return match ( $method_name ) {
             'update_product_title' => self::TITLE,
             'update_product_description' => self::DESCRIPTION,
             'update_product_short_description' => self::SHORT_DESCRIPTION,
             'update_product_tags' => self::TAGS,
+            default => null
         };
     }
 

@@ -72,6 +72,7 @@ class Product_Rollback {
         $wpdb->insert(
             self::get_table_name(),
             array(
+                'created_at'     => \current_time( 'mysql' ),
                 'job_id'         => $job_id,
                 'previous_value' => $previous_value,
                 'property'       => $property,
@@ -109,7 +110,7 @@ class Product_Rollback {
      *
      * @param int $id The ID of the product rollback.
      */
-    protected public function __construct( protected int $id ) {
+    protected function __construct( protected int $id ) {
     }
 
     /**

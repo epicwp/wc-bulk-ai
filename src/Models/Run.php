@@ -2,6 +2,7 @@
 namespace EPICWP\WC_Bulk_AI\Models;
 
 use DateTime;
+use EPICWP\WC_Bulk_AI\Enums\JobStatus;
 use EPICWP\WC_Bulk_AI\Enums\RunStatus;
 
 class Run {
@@ -183,7 +184,7 @@ class Run {
             $wpdb->prepare(
                 'SELECT * FROM ' . Job::get_table_name() . ' WHERE run_id = %d AND status = %s ORDER BY id ASC LIMIT 1',
                 $this->id,
-                'pending',
+                JobStatus::PENDING->value,
             ),
         );
         return $job ? new Job( $job->id ) : null;

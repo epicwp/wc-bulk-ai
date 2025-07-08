@@ -173,6 +173,39 @@ class MCP {
     }
 
     /**
+     * Get a product title
+     *
+     * @param array<string, mixed> $args
+     * @return string
+     */
+    public function get_product_title( array $args ): string {
+        $product = \wc_get_product( $args['product_id'] );
+        return $product->get_name();
+    }
+
+    /**
+     * Get a product description
+     *
+     * @param array<string, mixed> $args
+     * @return string
+     */
+    public function get_product_description( array $args ): string {
+        $product = \wc_get_product( $args['product_id'] );
+        return $product->get_description();
+    }
+
+    /**
+     * Get a product short description
+     *
+     * @param array<string, mixed> $args
+     * @return string
+     */
+    public function get_product_short_description( array $args ): string {
+        $product = \wc_get_product( $args['product_id'] );
+        return $product->get_short_description();
+    }
+
+    /**
      * Register the available tools
      *
      * @return void
@@ -366,7 +399,10 @@ class MCP {
             'get_available_product_tags'       => array( $this, 'get_available_product_tags' ),
             'get_product'                      => array( $this, 'get_product' ),
             'get_products'                     => array( $this, 'get_products' ),
+            'get_product_description'          => array( $this, 'get_product_description' ),
+            'get_product_short_description'    => array( $this, 'get_product_short_description' ),
             'get_product_tags'                 => array( $this, 'get_product_tags' ),
+            'get_product_title'                => array( $this, 'get_product_title' ),
             'update_product_description'       => array( $this, 'update_product_description' ),
             'update_product_short_description' => array( $this, 'update_product_short_description' ),
             'update_product_tags'              => array( $this, 'update_product_tags' ),

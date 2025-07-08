@@ -104,36 +104,41 @@ class Bulk_CLI_Handler {
         params: array(),
     )]
     public function start_bulk_run( array $flags ): void {
-        $select_mode = $flags['select'] ?? false;
+        try {
+            $select_mode = $flags['select'] ?? false;
 
-        $run = $select_mode ? $this->select_run_from_available() : Run::get_latest();
+            $run = $select_mode ? $this->select_run_from_available() : Run::get_latest();
 
-        if ( null === $run ) {
-            \WP_CLI::error( 'No bulk runs found.' );
-            return;
-        }
+            if ( null === $run ) {
+                \WP_CLI::error( 'No bulk runs found.' );
+                return;
+            }
 
-        // Check if run is in a final state
-        if ( $run->get_status()->isFinal() ) {
-            \WP_CLI::error( 'Selected run is already completed, failed, or cancelled.' );
-            return;
-        }
+            // Check if run is in a final state
+            if ( $run->get_status()->isFinal() ) {
+                \WP_CLI::error( 'Selected run is already completed, failed, or cancelled.' );
+                return;
+            }
 
-        $job = $run->get_next_job();
-        if ( null === $job ) {
-            \WP_CLI::error( 'No pending jobs found in this run.' );
-            return;
-        }
-
-        \WP_CLI::log( 'Starting run: ' . $run->get_display_string() );
-
-        $run->start();
-        while ( null !== $job ) {
-            $this->job_processor->process_job( $job );
             $job = $run->get_next_job();
+            if ( null === $job ) {
+                \WP_CLI::error( 'No pending jobs found in this run.' );
+                return;
+            }
+
+            \WP_CLI::log( 'Starting run: ' . $run->get_display_string() );
+
+            $run->start();
+            while ( null !== $job ) {
+                $this->job_processor->process_job( $job );
+                $job = $run->get_next_job();
+            }
+            $run->complete();
+            \WP_CLI::log( 'Bulk run completed: ' . $run->get_id() );
+        } catch ( \Exception $e ) {
+            \WP_CLI::error( $e->getMessage() );
+            $run->fail();
         }
-        $run->complete();
-        \WP_CLI::log( 'Bulk run completed: ' . $run->get_id() );
     }
 
     /**
