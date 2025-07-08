@@ -57,7 +57,7 @@ class MCP {
 
         // Trigger action after function execution
         \do_action( 'wcbai_mcp_function_executed', $function_name, $arguments, $result );
-        
+
         return $result;
     }
 

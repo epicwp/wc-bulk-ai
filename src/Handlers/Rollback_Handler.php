@@ -2,9 +2,11 @@
 
 namespace EPICWP\WC_Bulk_AI\Handlers;
 
-use EPICWP\WC_Bulk_AI\Enums\Tool;
+use EPICWP\WC_Bulk_AI\Enums\ProductProperty;
 use EPICWP\WC_Bulk_AI\Models\Job;
+use EPICWP\WC_Bulk_AI\Services\MCP;
 use EPICWP\WC_Bulk_AI\Services\Rollback_Service;
+use XWP\DI\Decorators\Action;
 use XWP\DI\Decorators\Handler;
 
 /**
@@ -20,10 +22,7 @@ class Rollback_Handler {
      *
      * @param Rollback_Service $rollback_service The rollback service.
      */
-    public function __construct( protected Rollback_Service $rollback_service ) {
-        \add_action( 'wcbai_job_before_perform_task', array( $this, 'handle_job_before_perform_task' ), 10, 1 );
-        \add_action( 'wcbai_mcp_function_before_execute', array( $this, 'handle_before_execute' ), 10, 2 );
-        \add_action( 'wcbai_job_finished', array( $this, 'handle_job_finished' ), 10, 3 );
+    public function __construct( protected Rollback_Service $rollback_service, protected MCP $mcp ) {
     }
 
     /**
@@ -33,16 +32,29 @@ class Rollback_Handler {
      * @param array  $arguments The arguments.
      * @return void
      */
+    #[Action(
+        tag: 'wcbai_mcp_function_before_execute',
+        priority: 10,
+        params: array(
+            'arguments'     => 'arguments',
+            'function_name' => 'function_name',
+        ),
+    )]
     public function handle_before_execute( string $function_name, array $arguments ): void {
-        $current_job_id = $this->get_current_job_processing();
+        $current_job_id = $this->get_current_job_processing( $arguments['job_id'] );
         if ( ! $current_job_id ) {
             return;
         }
 
-        $property       = Tool::from( $function_name )->get_property();
-        $previous_value = Tool::from( $function_name )->get_previous_value( $arguments );
+        $property          = ProductProperty::getByMethodName( $function_name );
+        $fetch_method_name = $property->getFetchMethodName();
+        $product_id        = Job::get_by_id( $current_job_id )->get_product_id();
+        $previous_value    = $this->mcp->execute_function(
+            $fetch_method_name,
+            array( 'product_id' => $product_id ),
+        );
 
-        $this->rollback_service->log_previous_value( $current_job_id, $property, $previous_value );
+        $this->rollback_service->log_previous_value( $current_job_id, $property->value, $previous_value );
     }
 
     /**
@@ -53,8 +65,9 @@ class Rollback_Handler {
      * @param mixed  $result The result.
      * @return void
      */
-    public function handle_job_finished( Job $job, bool $success ): void {
-        $current_job_id = $this->get_current_job_processing();
+    #[Action( tag: 'wcbai_job_finished', priority: 10, params: array( 'job' => 'job' ) )]
+    public function handle_job_finished( Job $job ): void {
+        $current_job_id = $this->get_current_job_processing( $job->get_id() );
         if ( ! $current_job_id ) {
             return;
         }
@@ -67,6 +80,7 @@ class Rollback_Handler {
      * @param Job $job The job.
      * @return void
      */
+    #[Action( tag: 'wcbai_job_before_perform_task', priority: 10, params: array( 'job' => 'job' ) )]
     public function handle_job_before_perform_task( Job $job ) {
         $this->set_current_job_processing( $job->get_id() );
     }

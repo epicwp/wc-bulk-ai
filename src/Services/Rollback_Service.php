@@ -2,6 +2,7 @@
 
 namespace EPICWP\WC_Bulk_AI\Services;
 
+use EPICWP\WC_Bulk_AI\Models\Job;
 use EPICWP\WC_Bulk_AI\Models\Product_Rollback;
 
 /**
