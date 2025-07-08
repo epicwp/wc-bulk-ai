@@ -1,13 +1,13 @@
 <?php
 /**
- * Plugin Name: WooCommerce Bulk AI
+ * Plugin Name: WooCommerce Product Agent
  * Description: Update your WooCommerce products in bulk with AI.
  * Version:     1.0.0
  *
  * @package EPICWP\WC_Bulk_AI
  */
 
-define( 'WC_BULK_AI_VERSION', '0.0.0' );
+define('WC_BULK_AI_VERSION', '0.0.0');
 
 require __DIR__ . '/vendor/autoload_packages.php';
 
@@ -42,18 +42,19 @@ xwp_load_app(
 );
 
 // Register activation hook
-\register_activation_hook( __FILE__, function() {
-    global $wpdb;
-    $charset_collate = $wpdb->get_charset_collate();
+\register_activation_hook(
+    __FILE__, function () {
+        global $wpdb;
+        $charset_collate = $wpdb->get_charset_collate();
 
-    // Ensure WordPress is loaded
-    if ( ! function_exists( 'dbDelta' ) ) {
-        require_once ABSPATH . 'wp-admin/includes/upgrade.php';
-    }
+        // Ensure WordPress is loaded
+        if (! function_exists('dbDelta') ) {
+            include_once ABSPATH . 'wp-admin/includes/upgrade.php';
+        }
     
-    // Create jobs table
-    $table_name = $wpdb->prefix . 'wcbai_jobs';
-    $sql = "CREATE TABLE $table_name (
+        // Create jobs table
+        $table_name = $wpdb->prefix . 'wcbai_jobs';
+        $sql = "CREATE TABLE $table_name (
         id mediumint(9) NOT NULL AUTO_INCREMENT,
         status varchar(20) NOT NULL,
         product_id int(11) NOT NULL,
@@ -64,11 +65,11 @@ xwp_load_app(
         error_message text NOT NULL,
         PRIMARY KEY (id)
     ) $charset_collate;";
-    dbDelta( $sql );
+        dbDelta($sql);
 
-    // Create runs table
-    $table_name = $wpdb->prefix . 'wcbai_runs';
-    $sql = "CREATE TABLE $table_name (
+        // Create runs table
+        $table_name = $wpdb->prefix . 'wcbai_runs';
+        $sql = "CREATE TABLE $table_name (
         id mediumint(9) NOT NULL AUTO_INCREMENT,
         task varchar(255) NOT NULL,
         status varchar(20) NOT NULL,
@@ -77,15 +78,18 @@ xwp_load_app(
         finished_at datetime NOT NULL,
         PRIMARY KEY (id)
     ) $charset_collate;";
-    dbDelta( $sql );
-});
+        dbDelta($sql);
+    }
+);
 
 // Register deactivation hook
-\register_deactivation_hook( __FILE__, function() {
-    global $wpdb;
-    $wpdb->query( "DROP TABLE IF EXISTS {$wpdb->prefix}wcbai_jobs" );
-    $wpdb->query( "DROP TABLE IF EXISTS {$wpdb->prefix}wcbai_runs" );
-});
+\register_deactivation_hook(
+    __FILE__, function () {
+        global $wpdb;
+        $wpdb->query("DROP TABLE IF EXISTS {$wpdb->prefix}wcbai_jobs");
+        $wpdb->query("DROP TABLE IF EXISTS {$wpdb->prefix}wcbai_runs");
+    }
+);
 
 // \register_deactivation_hook( __FILE__, function() {
 //     global $wpdb;

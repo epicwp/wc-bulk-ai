@@ -37,7 +37,13 @@ class App implements On_Initialize {
      */
     public static function configure(): array {
         return array(
-            'app.client' => \OpenAI::client( \get_option( 'wcbai_openai_api_key' ) ),
+            'app.client' => \DI\factory( function() {
+                $api_key = \get_option( 'wcbai_openai_api_key' );
+                if ( empty( $api_key ) ) {
+                    throw new \Exception( 'OpenAI API key is not configured. Please set it in WooCommerce > Bulk AI settings.' );
+                }
+                return \OpenAI::client( $api_key );
+            }),
             'app.default_tasks' => \DI\factory( array( Task_Manager::class, 'get_tasks' ) ),
             Process_Logger::class => \DI\autowire( Verbose_Logger::class ),
         );

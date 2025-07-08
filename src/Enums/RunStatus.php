@@ -2,12 +2,12 @@
 namespace EPICWP\WC_Bulk_AI\Enums;
 
 enum RunStatus: string {
-    case PENDING = 'pending';
-    case RUNNING = 'running'; 
+    case PENDING   = 'pending';
+    case RUNNING   = 'running';
     case COMPLETED = 'completed';
-    case FAILED = 'failed';
+    case FAILED    = 'failed';
     case CANCELLED = 'cancelled';
-    case PAUSED = 'paused';
+    case PAUSED    = 'paused';
 
     /**
      * Get all status values as an array
@@ -15,7 +15,7 @@ enum RunStatus: string {
      * @return array<string>
      */
     public static function values(): array {
-        return array_map(fn($case) => $case->value, self::cases());
+        return \array_map( static fn( $case ) => $case->value, self::cases() );
     }
 
     /**
@@ -24,7 +24,7 @@ enum RunStatus: string {
      * @return bool
      */
     public function isFinal(): bool {
-        return in_array($this, [self::COMPLETED, self::FAILED, self::CANCELLED]);
+        return \in_array( $this, array( self::COMPLETED, self::FAILED, self::CANCELLED ) );
     }
 
     /**
@@ -33,7 +33,7 @@ enum RunStatus: string {
      * @return bool
      */
     public function isActive(): bool {
-        return $this === self::RUNNING;
+        return self::RUNNING === $this;
     }
 
     /**
@@ -42,7 +42,7 @@ enum RunStatus: string {
      * @return bool
      */
     public function isPending(): bool {
-        return $this === self::PENDING;
+        return self::PENDING === $this;
     }
 
     /**
@@ -51,7 +51,7 @@ enum RunStatus: string {
      * @return bool
      */
     public function canBeResumed(): bool {
-        return in_array($this, [self::PENDING, self::PAUSED]);
+        return \in_array( $this, array( self::PENDING, self::PAUSED ) );
     }
 
     /**
@@ -60,6 +60,6 @@ enum RunStatus: string {
      * @return bool
      */
     public function canBeCancelled(): bool {
-        return in_array($this, [self::PENDING, self::RUNNING, self::PAUSED]);
+        return \in_array( $this, array( self::PENDING, self::RUNNING, self::PAUSED ) );
     }
 }
