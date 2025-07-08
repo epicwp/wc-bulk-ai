@@ -186,6 +186,92 @@ class Bulk_CLI_Handler {
     }
 
     /**
+     * List all runs with their statistics in a table format.
+     *
+     * @param array $flags
+     */
+    #[CLI_Command(
+        command: 'list',
+        summary: 'List all runs with their statistics',
+        args: array(
+            array(
+                'default'     => false,
+                'description' => 'Show only available (non-completed) runs',
+                'name'        => 'available',
+                'optional'    => true,
+                'type'        => 'flag',
+                'var'         => 'available',
+            ),
+        ),
+        params: array(),
+    )]
+    public function list_runs( array $flags ): void {
+        $available_only = $flags['available'] ?? false;
+
+        // Get runs based on filter
+        $runs = $available_only ? Run::get_available() : Run::list();
+
+        if ( empty( $runs ) ) {
+            \WP_CLI::warning( $available_only ? 'No available runs found.' : 'No runs found.' );
+            return;
+        }
+
+        // Prepare table data
+        $table_data = array();
+        foreach ( $runs as $run ) {
+            $table_data[] = $this->format_run_for_table( $run );
+        }
+
+        // Display table
+        \WP_CLI\Utils\format_items(
+            'table',
+            $table_data,
+            array(
+                'ID',
+                'Status',
+                'Progress',
+                'Jobs',
+                'Task',
+                'Created',
+            ),
+        );
+
+        \WP_CLI::log( '' );
+        \WP_CLI::log( 'Total: ' . \count( $runs ) . ' run(s)' );
+    }
+
+    /**
+     * Format a run for table display.
+     *
+     * @param Run $run
+     * @return array
+     */
+    protected function format_run_for_table( Run $run ): array {
+        $progress  = \round( $run->get_progress() * 100, 1 );
+        $completed = $run->get_completed_jobs_count();
+        $total     = $run->get_total_jobs_count();
+        $status    = $run->get_status()->value;
+
+        // Format task (truncate if too long)
+        $task = $run->get_task();
+        if ( \strlen( $task ) > 50 ) {
+            $task = \substr( $task, 0, 47 ) . '...';
+        }
+
+        // Format created date
+        $created = $run->get_created_at()->format( 'Y-m-d H:i' );
+
+        return array(
+            'Created'  => $created,
+            'ID'       => $run->get_id(),
+            'Jobs'     => "{$completed}/{$total}",
+            'Progress' => $progress . '%',
+            'Status'   => \strtoupper( $status ),
+            'Task'     => $task,
+        );
+    }
+
+    /**
      * Prompt for the number of products to process.
      *
      * @return int
