@@ -22,6 +22,7 @@ class Bulk_CLI_Handler {
      * Create a bulk task run.
      *
      * @param string $task
+     * @param array  $flags
      * @param array  $default_tasks
      */
     #[CLI_Command(
@@ -36,16 +37,35 @@ class Bulk_CLI_Handler {
                 'type'        => 'positional',
                 'var'         => 'task',
             ),
+            array(
+                'default'     => '',
+                'description' => 'Language code (e.g., en, fr, de). Leave empty to select products from all languages.',
+                'name'        => 'lang',
+                'optional'    => true,
+                'type'        => 'assoc',
+                'var'         => 'lang',
+            ),
+            array(
+                'default'     => '',
+                'description' => 'Category slug to filter products. Leave empty to select products from all categories.',
+                'name'        => 'category',
+                'optional'    => true,
+                'type'        => 'assoc',
+                'var'         => 'category',
+            ),
         ),
         params: array( 'default_tasks' => 'app.default_tasks' ),
     )]
-    public function create_bulk_run( string $task, array $default_tasks = array() ): void {
+    public function create_bulk_run( string $task, array $flags, array $default_tasks = array() ): void {
+        // Extract parameters from the flags array
+        $lang     = $flags['lang'] ?? '';
+        $category = $flags['category'] ?? '';
+
         // First prompt for required parameters.
-        $limit    = $this->prompt_for_number_of_products();
-        $category = $this->prompt_for_category();
+        $limit = $this->prompt_for_number_of_products();
 
         // Collect product IDs.
-        $product_ids = $this->collect_product_ids( $limit, $category );
+        $product_ids = $this->collect_product_ids( $limit, $category, $lang );
         $this->communicate_matching_products( $product_ids );
 
         // Prompt for task if not provided.
@@ -121,7 +141,7 @@ class Bulk_CLI_Handler {
      */
     protected function prompt_for_category(): string {
         $category = CLI_Handler::prompt(
-            'Enter the category to process: (leave empty to select from predefined categories):',
+            'Enter the category slug to process: (leave empty to select from predefined categories):',
         );
         if ( '' === $category ) {
             $category = CLI_Handler::choice( 'Select from predefined categories', $default_categories );
@@ -147,13 +167,18 @@ class Bulk_CLI_Handler {
      *
      * @param int    $limit
      * @param string $category
+     * @param string $lang
      * @return array
      */
-    protected function collect_product_ids( int $limit, string $category ): array {
+    protected function collect_product_ids( int $limit, string $category, string $lang = '' ): array {
         $args = array(
-            'lang'  => 'en',
             'limit' => $limit,
         );
+
+        // Add language filter if specified
+        if ( '' !== $lang ) {
+            $args['lang'] = $lang;
+        }
 
         if ( '' !== $category ) {
             $args['tax_query'] = array(
@@ -164,6 +189,7 @@ class Bulk_CLI_Handler {
                 ),
             );
         }
+
         $product_ids = $this->product_collector->collect_ids( $args );
         return $product_ids;
     }
