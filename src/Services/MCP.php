@@ -49,7 +49,16 @@ class MCP {
             throw new \Exception( "Function {$function_name} not found" );
         }
 
-        return \call_user_func( $this->callbacks[ $function_name ], $arguments );
+        // Trigger action before function execution
+        \do_action( 'wcbai_mcp_function_before_execute', $function_name, $arguments );
+
+        // Call the actual function
+        $result = \call_user_func( $this->callbacks[ $function_name ], $arguments );
+
+        // Trigger action after function execution
+        \do_action( 'wcbai_mcp_function_executed', $function_name, $arguments, $result );
+        
+        return $result;
     }
 
     /**

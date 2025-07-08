@@ -7,7 +7,6 @@ use EPICWP\WC_Bulk_AI\Models\Job;
  * Processes individual jobs by coordinating with the AI Agent
  */
 class Job_Processor {
-
     /**
      * Constructor
      *
@@ -26,21 +25,22 @@ class Job_Processor {
         try {
             // Start the job
             $job->start();
-            
+
+            \do_action( 'wcbai_job_before_perform_task', $job );
+
             // Perform the task using the AI agent
-            $success = $this->agent->perform_task( 
-                $job->get_task(), 
-                $job->get_product_id()
+            $success = $this->agent->perform_task(
+                $job->get_task(),
+                $job->get_product_id(),
             );
-            
+
             if ( $success ) {
                 $job->complete();
                 return true;
-            } else {
-                $job->fail();
-                return false;
             }
-            
+
+            $job->fail();
+            return false;
         } catch ( \Exception $e ) {
             $job->fail( $e->getMessage() );
             return false;

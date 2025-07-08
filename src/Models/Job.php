@@ -265,9 +265,9 @@ class Job {
         $wpdb->update(
             self::get_table_name(),
             array(
-                'error_message' => $error_message,
-                'finished_at'   => $now,
-                'status'        => JobStatus::FAILED->value,
+                'feedback'    => $error_message,
+                'finished_at' => $now,
+                'status'      => JobStatus::FAILED->value,
             ),
             array( 'id' => $this->id ),
         );

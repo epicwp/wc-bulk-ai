@@ -7,7 +7,7 @@
  * @package EPICWP\WC_Bulk_AI
  */
 
-define('WC_BULK_AI_VERSION', '0.0.0');
+define( 'WC_BULK_AI_VERSION', '0.0.0' );
 
 require __DIR__ . '/vendor/autoload_packages.php';
 
@@ -43,18 +43,19 @@ xwp_load_app(
 
 // Register activation hook
 \register_activation_hook(
-    __FILE__, function () {
+    __FILE__,
+    static function () {
         global $wpdb;
         $charset_collate = $wpdb->get_charset_collate();
 
         // Ensure WordPress is loaded
-        if (! function_exists('dbDelta') ) {
+        if ( ! function_exists( 'dbDelta' ) ) {
             include_once ABSPATH . 'wp-admin/includes/upgrade.php';
         }
-    
+
         // Create jobs table
         $table_name = $wpdb->prefix . 'wcbai_jobs';
-        $sql = "CREATE TABLE $table_name (
+        $sql        = "CREATE TABLE $table_name (
         id mediumint(9) NOT NULL AUTO_INCREMENT,
         status varchar(20) NOT NULL,
         product_id int(11) NOT NULL,
@@ -62,14 +63,14 @@ xwp_load_app(
         created_at datetime NOT NULL,
         started_at datetime NOT NULL,
         finished_at datetime NOT NULL,
-        error_message text NOT NULL,
+        feedback text NOT NULL,
         PRIMARY KEY (id)
     ) $charset_collate;";
-        dbDelta($sql);
+        dbDelta( $sql );
 
         // Create runs table
         $table_name = $wpdb->prefix . 'wcbai_runs';
-        $sql = "CREATE TABLE $table_name (
+        $sql        = "CREATE TABLE $table_name (
         id mediumint(9) NOT NULL AUTO_INCREMENT,
         task varchar(255) NOT NULL,
         status varchar(20) NOT NULL,
@@ -78,21 +79,35 @@ xwp_load_app(
         finished_at datetime NOT NULL,
         PRIMARY KEY (id)
     ) $charset_collate;";
-        dbDelta($sql);
-    }
+        dbDelta( $sql );
+
+        // Create product rollbacks table
+        $table_name = $wpdb->prefix . 'wcbai_product_rollbacks';
+        $sql        = "CREATE TABLE $table_name (
+        id mediumint(9) NOT NULL AUTO_INCREMENT,
+        job_id int(11) NOT NULL,
+        property varchar(255) NOT NULL,
+        previous_value text NOT NULL,
+        status varchar(20) NOT NULL,
+        created_at datetime NOT NULL,
+        PRIMARY KEY (id)
+    ) $charset_collate;";
+        dbDelta( $sql );
+    },
 );
 
 // Register deactivation hook
 \register_deactivation_hook(
-    __FILE__, function () {
+    __FILE__,
+    static function () {
         global $wpdb;
-        $wpdb->query("DROP TABLE IF EXISTS {$wpdb->prefix}wcbai_jobs");
-        $wpdb->query("DROP TABLE IF EXISTS {$wpdb->prefix}wcbai_runs");
-    }
+        $wpdb->query( "DROP TABLE IF EXISTS {$wpdb->prefix}wcbai_jobs" );
+        $wpdb->query( "DROP TABLE IF EXISTS {$wpdb->prefix}wcbai_runs" );
+    },
 );
 
 // \register_deactivation_hook( __FILE__, function() {
-//     global $wpdb;
-//     $wpdb->query( "DROP TABLE IF EXISTS {$wpdb->prefix}wcbai_jobs" );
-//     $wpdb->query( "DROP TABLE IF EXISTS {$wpdb->prefix}wcbai_runs" );
+// global $wpdb;
+// $wpdb->query( "DROP TABLE IF EXISTS {$wpdb->prefix}wcbai_jobs" );
+// $wpdb->query( "DROP TABLE IF EXISTS {$wpdb->prefix}wcbai_runs" );
 // });
