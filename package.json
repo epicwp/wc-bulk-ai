@@ -1,0 +1,7 @@
+{
+  "devDependencies": {
+    "@semantic-release/exec": "^7.0.3",
+    "@x-wp/wordpack": "^1"
+  },
+  "scripts": {}
+}
