@@ -153,7 +153,6 @@ class Run {
         global $wpdb;
         $count = self::get_count();
         $wpdb->query( 'DELETE FROM ' . self::get_table_name() );
-        $wpdb->query( 'ALTER TABLE ' . self::get_table_name() . ' AUTO_INCREMENT = 1' );
         return $count;
     }
 
@@ -386,6 +385,23 @@ class Run {
                 $this->id,
             ),
         );
+    }
+
+    /**
+     * Check if the run has a product.
+     *
+     * @param int $product_id
+     * @return bool
+     */
+    public function has_product( int $product_id ): bool {
+        global $wpdb;
+        return $wpdb->get_var(
+            $wpdb->prepare(
+                'SELECT COUNT(*) FROM ' . Job::get_table_name() . ' WHERE run_id = %d AND product_id = %d',
+                $this->id,
+                $product_id,
+            ),
+        ) > 0;
     }
 
     /**

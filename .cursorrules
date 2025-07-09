@@ -1,0 +1,19 @@
+Commit messages
+
+Use semantic release commit messages following the Conventional Commits format:
+   - Format: `<type>([scope]): <description>`
+   - Types:
+     - `feat`: A new feature (triggers MINOR version bump)
+     - `fix`: A bug fix (triggers PATCH version bump)
+     - `docs`: Documentation changes only
+     - `style`: Code style changes (formatting, semicolons, etc)
+     - `refactor`: Code changes that neither fix bugs nor add features
+     - `perf`: Performance improvements
+     - `test`: Adding or updating tests
+     - `chore`: Changes to build process or auxiliary tools
+     - `ci`: Changes to CI configuration files and scripts
+   - Breaking changes: Add `BREAKING CHANGE:` in the commit body or footer, or append `!` after type/scope (triggers MAJOR version bump)
+   - Example: `feat(auth): add OAuth2 authentication support`
+   - Example with breaking change: `feat(api)!: remove deprecated endpoints` or include `BREAKING CHANGE: API endpoints /v1/* removed`
+   - Keep descriptions short (< 72 chars), use imperative present tense (add, not added)
+   - For complex changes, add details in the commit body after a blank line

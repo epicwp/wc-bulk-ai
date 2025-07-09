@@ -99,7 +99,6 @@ class Job {
         global $wpdb;
         $count = self::get_count();
         $wpdb->query( 'DELETE FROM ' . self::get_table_name() );
-        $wpdb->query( 'ALTER TABLE ' . self::get_table_name() . ' AUTO_INCREMENT = 1' );
         return $count;
     }
 

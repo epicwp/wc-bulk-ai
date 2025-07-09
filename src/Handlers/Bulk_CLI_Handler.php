@@ -11,6 +11,9 @@ use WP_CLI;
 use XWP\DI\Decorators\CLI_Command;
 use XWP\DI\Decorators\CLI_Handler;
 
+/**
+ * Bulk run CLI Handler.
+ */
 #[CLI_Handler(
     namespace: 'product-bulk-agent',
     description: 'WooCommerce Product Bulk Agent',
@@ -67,7 +70,7 @@ class Bulk_CLI_Handler {
         $limit = $this->prompt_for_number_of_products();
 
         // Collect product IDs.
-        $product_ids = $this->collect_product_ids( $limit, $category, $lang );
+        $product_ids = $this->handle_product_id_collection( $limit, $category, $lang );
         $this->communicate_matching_products( $product_ids );
 
         // Prompt for task if not provided.
@@ -81,7 +84,7 @@ class Bulk_CLI_Handler {
 
         // Communicate results.
         \WP_CLI::log( 'Bulk run created with ID: ' . $run->get_id() );
-        \WP_CLI::log( 'Added ' . \count( $product_ids ) . ' jobs.' );
+        \WP_CLI::log( 'Added ' . \count( $product_ids ) . ' job(s).' );
         \WP_CLI::log( 'Use `wp product-bulk-agent start` to start this run.' );
     }
 
@@ -102,45 +105,154 @@ class Bulk_CLI_Handler {
                 'type'        => 'flag',
                 'var'         => 'select',
             ),
+            array(
+                'default'     => null,
+                'description' => 'The ID of the task to start.',
+                'name'        => 'task',
+                'optional'    => true,
+                'type'        => 'flag',
+                'var'         => 'task_id',
+            ),
         ),
         params: array(),
     )]
     public function start_bulk_run( array $flags ): void {
         try {
-            $select_mode = $flags['select'] ?? false;
+            $run = null;
 
-            $run = $select_mode ? $this->select_run_from_available() : Run::get_latest();
+            $run_id = $flags['task_id'] ?? null;
+            if ( null !== $run_id ) {
+                $run = Run::get_by_id( $run_id );
+                if ( null === $run ) {
+                    \WP_CLI::error( \sprintf( 'Task with ID #%d not found.', $run_id ) );
+                    return;
+                }
+            }
 
-            if ( null === $run ) {
+            // If no run is added via the flag already, we can select from available runs or use the latest run.
+            if ( ! $run ) {
+
+                // If select flag is set we can select from available runs.
+                $select_mode = $flags['select'] ?? false;
+
+                // If select mode is enabled we can select from available runs, otherwise we use the latest run.
+                $run = $select_mode ? $this->select_run_from_available() : Run::get_latest();
+            }
+
+            if ( ! $run ) {
                 \WP_CLI::error( 'No bulk runs found.' );
                 return;
             }
 
             // Check if run is in a final state
-            if ( $run->get_status()->isFinal() ) {
+            if ( $run->get_status()->isFinal() && null === $run->get_next_job() ) {
                 \WP_CLI::error( 'Selected run is already completed, failed, or cancelled.' );
                 return;
             }
 
-            $job = $run->get_next_job();
-            if ( null === $job ) {
-                \WP_CLI::error( 'No pending jobs found in this run.' );
-                return;
-            }
-
-            \WP_CLI::log( 'Starting run: ' . $run->get_display_string() );
-
-            $run->start();
-            while ( null !== $job ) {
-                $this->job_processor->process_job( $job );
-                $job = $run->get_next_job();
-            }
-            $run->complete();
-            \WP_CLI::log( 'Bulk run completed: ' . $run->get_id() );
+            // Start the run.
+            $this->handle_run_start( $run );
         } catch ( \Exception $e ) {
             \WP_CLI::error( $e->getMessage() );
             $run->fail();
         }
+    }
+
+    /**
+     * Resume a bulk run (with additional products)
+     */
+    #[CLI_Command(
+        command: 'resume-task',
+        summary: 'Resume a bulk run (with additional products)',
+        args: array(
+            array(
+                'default'     => false,
+                'description' => 'Select from available runs',
+                'name'        => 'select',
+                'optional'    => true,
+                'type'        => 'flag',
+                'var'         => 'select',
+            ),
+            array(
+                'default'     => null,
+                'description' => 'The ID of the task to continue.',
+                'name'        => 'task-id',
+                'optional'    => false,
+                'type'        => 'positional',
+                'var'         => 'run_id',
+            ),
+            array(
+                'default'     => false,
+                'description' => 'Add additional products to the task',
+                'name'        => 'extend',
+                'optional'    => true,
+                'type'        => 'flag',
+                'var'         => 'extend',
+            ),
+        ),
+    )]
+    public function continue_bulk_run( array $flags, ?int $run_id = null ): void {
+        // If select flag is set we can select from available runs.
+        $select = $flags['select'] ?? false;
+        if ( $select ) {
+            $run = $this->select_run_from_available();
+            if ( null === $run ) {
+                \WP_CLI::error( 'Task not available.' );
+                return;
+            }
+        }
+
+        // If run ID is provided we can use it.
+        $run ??= Run::get_by_id( $run_id );
+        if ( null === $run ) {
+            \WP_CLI::error( 'Task not found.' );
+            return;
+        }
+
+        // If extend flag is set we can add additional products to the task.
+        $extend = $flags['extend'] ?? false;
+        if ( ! $extend ) {
+            $this->handle_run_start( $run, true );
+            return;
+        }
+
+        // Prompt for additional products.
+        $lang        = $this->prompt_for_language();
+        $category    = $this->prompt_for_category();
+        $limit       = $this->prompt_for_number_of_products();
+        $product_ids = $this->handle_product_id_collection( $limit, $category, $lang );
+
+        if ( 0 === \count( $product_ids ) ) {
+            return;
+        }
+
+        $added = 0;
+
+        foreach ( $product_ids as $product_id ) {
+
+            // Skip if the product already exists in the task.
+            if ( $run->has_product( $product_id ) ) {
+                \WP_CLI::log(
+                    'Skipped adding product with ID #' . $product_id . ' because it already exists in the task.',
+                );
+                continue;
+            }
+
+            // Create the job and add it to the task.
+            Job::create( $run->get_id(), $product_id );
+
+            ++$added;
+        }
+
+        if ( 0 === $added ) {
+            \WP_CLI::log( 'No new products added to the task.' );
+            return;
+        }
+
+        \WP_CLI::log( 'Added ' . $added . ' new job(s).' );
+        \WP_CLI::log(
+            'Use `wp product-bulk-agent start --task-id=' . $run->get_id() . '` to resume this run.',
+        );
     }
 
     /**
@@ -295,7 +407,7 @@ class Bulk_CLI_Handler {
      * Format a run for table display.
      *
      * @param Run $run
-     * @return array
+     * @return array<string, string>
      */
     protected function format_run_for_table( Run $run ): array {
         $progress  = \round( $run->get_progress() * 100, 1 );
@@ -328,7 +440,8 @@ class Bulk_CLI_Handler {
      * @return int
      */
     protected function prompt_for_number_of_products(): int {
-        $limit = (int) CLI_Handler::prompt( 'Enter the number of products to process: (default: 10)' ) ?? 10;
+        $input = CLI_Handler::prompt( 'Enter the number of products to process: (default: 10)' );
+        $limit = '' === $input ? 10 : (int) $input;
         return $limit;
     }
 
@@ -355,26 +468,69 @@ class Bulk_CLI_Handler {
      * @return string
      */
     protected function prompt_for_category(): string {
-        $category = CLI_Handler::prompt(
-            'Enter the category slug to process: (leave empty to select from predefined categories):',
+        $input = CLI_Handler::prompt(
+            'From a specific category? (leave empty to continue without a category):',
         );
-        if ( '' === $category ) {
-            $category = CLI_Handler::choice( 'Select from predefined categories', $default_categories );
+
+        if ( '' === $input ) {
+            return '';
         }
+
+        // Get all product categories.
+        $choices = \get_terms(
+            array(
+                'fields'     => 'slugs',
+                'hide_empty' => false,
+                'taxonomy'   => 'product_cat',
+            ),
+        );
+        if ( ! $choices ) {
+            return '';
+        }
+
+        $category = CLI_Handler::choice( 'Choose a category:', $choices, '' );
         return $category;
+    }
+
+    /**
+     * Prompt for the language to process.
+     *
+     * @return string
+     */
+    protected function prompt_for_language(): string {
+        $input = CLI_Handler::prompt(
+            'From a specific language? (leave empty to continue with all languages):',
+        );
+
+        if ( '' === $input ) {
+            return '';
+        }
+        return $language;
     }
 
     /**
      * Communicate the number of matching products.
      *
-     * @param array $product_ids
+     * @param array<int> $product_ids
      */
     protected function communicate_matching_products( array $product_ids ): void {
-        if ( 0 === \count( $product_ids ) ) {
+        $count = \count( $product_ids );
+        if ( 0 === $count ) {
             \WP_CLI::error( 'No matching products found.' );
             return;
         }
-        \WP_CLI::log( 'Found matching ' . \count( $product_ids ) . ' product(s).' );
+
+        // Show the first 10 products as reference.
+        $results = \array_map( 'get_the_title', \array_slice( $product_ids, 0, 10 ) );
+        \WP_CLI::log( 'Found matching ' . $count . ' product(s):' );
+        foreach ( $results as $index => $result ) {
+            \WP_CLI::log( \sprintf( '%d. %s', $index + 1, $result ) );
+        }
+        if ( $count <= 10 ) {
+            return;
+        }
+
+        \WP_CLI::log( '... (' . $count . ' total)' );
     }
 
     /**
@@ -383,9 +539,9 @@ class Bulk_CLI_Handler {
      * @param int    $limit
      * @param string $category
      * @param string $lang
-     * @return array
+     * @return array<int>
      */
-    protected function collect_product_ids( int $limit, string $category, string $lang = '' ): array {
+    protected function handle_product_id_collection( int $limit, string $category = '', string $lang = '' ): array {
         $args = array(
             'limit' => $limit,
         );
@@ -441,5 +597,29 @@ class Bulk_CLI_Handler {
 
         \WP_CLI::error( 'Could not find the selected run.' );
         return null;
+    }
+
+    /**
+     * Handle the start of a run.
+     *
+     * @param Run  $run
+     * @param bool $resume
+     */
+    protected function handle_run_start( Run $run, bool $resume = false ): void {
+        \WP_CLI::log( $resume ? 'Resuming' : 'Starting' . ' run: ' . $run->get_display_string() );
+
+        $job = $run->get_next_job();
+        if ( null === $job ) {
+            \WP_CLI::error( 'No pending jobs found in this run.' );
+            return;
+        }
+
+        $run->start();
+        while ( null !== $job ) {
+            $this->job_processor->process_job( $job );
+            $job = $run->get_next_job();
+        }
+        $run->complete();
+        \WP_CLI::log( 'Bulk run completed: ' . $run->get_id() );
     }
 }
