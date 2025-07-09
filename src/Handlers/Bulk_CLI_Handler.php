@@ -85,7 +85,7 @@ class Bulk_CLI_Handler {
         // Communicate results.
         \WP_CLI::log( 'Bulk run created with ID: ' . $run->get_id() );
         \WP_CLI::log( 'Added ' . \count( $product_ids ) . ' job(s).' );
-        \WP_CLI::log( 'Use `wp product-bulk-agent start` to start this run.' );
+        \WP_CLI::log( 'Use `wp product-bulk-agent start --task=' . $run->get_id() . '` to start this run.' );
     }
 
     /**
@@ -191,7 +191,7 @@ class Bulk_CLI_Handler {
             ),
         ),
     )]
-    public function continue_bulk_run( array $flags, ?int $run_id = null ): void {
+    public function resume_bulk_run( array $flags, ?int $run_id = null ): void {
         // If select flag is set we can select from available runs.
         $select = $flags['select'] ?? false;
         if ( $select ) {
@@ -216,23 +216,21 @@ class Bulk_CLI_Handler {
             return;
         }
 
+        // Get all existing product ids from this run.
+        $existing_product_ids = $run->get_product_ids();
+
         // Prompt for additional products.
         $lang        = $this->prompt_for_language();
         $category    = $this->prompt_for_category();
         $limit       = $this->prompt_for_number_of_products();
-        $product_ids = $this->handle_product_id_collection( $limit, $category, $lang );
+        $product_ids = $this->handle_product_id_collection( $limit, $category, $lang, $existing_product_ids );
 
         if ( 0 === \count( $product_ids ) ) {
             return;
         }
 
+        // How many new products (jobs) are added to the task.
         $added = 0;
-
-        // Get all product ids from this run.
-        $existing_product_ids = $run->get_product_ids();
-
-        // Remove existing product ids from the new product ids.
-        $product_ids = \array_diff( $product_ids, $existing_product_ids );
 
         if ( 0 === \count( $product_ids ) ) {
             \WP_CLI::log( 'No new products added to the task.' );
@@ -518,7 +516,7 @@ class Bulk_CLI_Handler {
 
         // Show the first 10 products as reference.
         $results = \array_map( 'get_the_title', \array_slice( $product_ids, 0, 10 ) );
-        \WP_CLI::log( 'Found matching ' . $count . ' product(s):' );
+        \WP_CLI::log( 'Found ' . $count . ' matching product(s):' );
         foreach ( $results as $index => $result ) {
             \WP_CLI::log( \sprintf( '%d. %s', $index + 1, $result ) );
         }
@@ -532,14 +530,16 @@ class Bulk_CLI_Handler {
     /**
      * Collect product IDs.
      *
-     * @param int    $limit
-     * @param string $category
-     * @param string $lang
+     * @param int        $limit
+     * @param string     $category
+     * @param string     $lang
+     * @param array<int> $exclude_product_ids
      * @return array<int>
      */
-    protected function handle_product_id_collection( int $limit, string $category = '', string $lang = '' ): array {
+    protected function handle_product_id_collection( int $limit, string $category = '', string $lang = '', array $excluded_ids = array() ): array {
+        // Increase limit to account for excluded product ids.
         $args = array(
-            'limit' => $limit,
+            'limit' => \count( $excluded_ids ) + $limit,
         );
 
         // Add language filter if specified
@@ -557,6 +557,11 @@ class Bulk_CLI_Handler {
             );
         }
 
+        // Exclude product ids if specified.
+        if ( \count( $excluded_ids ) > 0 ) {
+            $args['exclude'] = $excluded_ids;
+        }
+
         $product_ids = $this->product_collector->collect_ids( $args );
         return $product_ids;
     }
@@ -570,7 +575,7 @@ class Bulk_CLI_Handler {
         $available_runs = Run::get_available();
 
         if ( empty( $available_runs ) ) {
-            \WP_CLI::error( 'No available runs found.' );
+            \WP_CLI::error( 'No available tasks found.' );
             return null;
         }
 
@@ -580,9 +585,9 @@ class Bulk_CLI_Handler {
             $choices[] = $run->get_display_string();
         }
 
-        \WP_CLI::log( 'Available runs:' );
+        \WP_CLI::log( 'Available tasks:' );
 
-        $selected_display_string = CLI_Handler::choice( 'Select a run to start:', $choices );
+        $selected_display_string = CLI_Handler::choice( 'Select a task to start:', $choices );
 
         // Find the run that matches the selected display string
         foreach ( $available_runs as $run ) {
@@ -591,7 +596,7 @@ class Bulk_CLI_Handler {
             }
         }
 
-        \WP_CLI::error( 'Could not find the selected run.' );
+        \WP_CLI::error( 'Could not find the selected task.' );
         return null;
     }
 
