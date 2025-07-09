@@ -405,6 +405,19 @@ class Run {
     }
 
     /**
+     * Get the product IDs of each job in this run.
+     *
+     * @return array<int>
+     */
+    public function get_product_ids(): array {
+        global $wpdb;
+        $product_ids = $wpdb->get_col(
+            $wpdb->prepare( 'SELECT product_id FROM ' . Job::get_table_name() . ' WHERE run_id = %d', $this->id ),
+        );
+        return \array_map( static fn( $product_id ) => (int) $product_id, $product_ids );
+    }
+
+    /**
      * Get the creation date of the run.
      *
      * @return DateTime

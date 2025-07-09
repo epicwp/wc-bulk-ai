@@ -228,30 +228,26 @@ class Bulk_CLI_Handler {
 
         $added = 0;
 
-        foreach ( $product_ids as $product_id ) {
+        // Get all product ids from this run.
+        $existing_product_ids = $run->get_product_ids();
 
-            // Skip if the product already exists in the task.
-            if ( $run->has_product( $product_id ) ) {
-                \WP_CLI::log(
-                    'Skipped adding product with ID #' . $product_id . ' because it already exists in the task.',
-                );
-                continue;
-            }
+        // Remove existing product ids from the new product ids.
+        $product_ids = \array_diff( $product_ids, $existing_product_ids );
 
-            // Create the job and add it to the task.
-            Job::create( $run->get_id(), $product_id );
-
-            ++$added;
-        }
-
-        if ( 0 === $added ) {
+        if ( 0 === \count( $product_ids ) ) {
             \WP_CLI::log( 'No new products added to the task.' );
             return;
         }
 
+        foreach ( $product_ids as $product_id ) {
+            // Create the job and add it to the task.
+            Job::create( $run->get_id(), $product_id );
+            ++$added;
+        }
+
         \WP_CLI::log( 'Added ' . $added . ' new job(s).' );
         \WP_CLI::log(
-            'Use `wp product-bulk-agent start --task-id=' . $run->get_id() . '` to resume this run.',
+            'Use `wp product-bulk-agent start --task=' . $run->get_id() . '` to resume this run.',
         );
     }
 
@@ -505,7 +501,7 @@ class Bulk_CLI_Handler {
         if ( '' === $input ) {
             return '';
         }
-        return $language;
+        return $input;
     }
 
     /**
@@ -608,7 +604,8 @@ class Bulk_CLI_Handler {
     protected function handle_run_start( Run $run, bool $resume = false ): void {
         \WP_CLI::log( $resume ? 'Resuming' : 'Starting' . ' run: ' . $run->get_display_string() );
 
-        $job = $run->get_next_job();
+        $completed_jobs = 0;
+        $job            = $run->get_next_job();
         if ( null === $job ) {
             \WP_CLI::error( 'No pending jobs found in this run.' );
             return;
@@ -618,8 +615,10 @@ class Bulk_CLI_Handler {
         while ( null !== $job ) {
             $this->job_processor->process_job( $job );
             $job = $run->get_next_job();
+            ++$completed_jobs;
         }
         $run->complete();
-        \WP_CLI::log( 'Bulk run completed: ' . $run->get_id() );
+        \WP_CLI::log( 'Completed ' . $completed_jobs . ' job(s).' );
+        \WP_CLI::log( 'Bulk run completed: ID: #' . $run->get_id() );
     }
 }
