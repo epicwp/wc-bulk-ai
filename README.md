@@ -4,14 +4,14 @@ A powerful WordPress plugin that uses AI to bulk update your WooCommerce product
 
 ## Features
 
-🤖 **AI-Powered Processing**: Uses OpenAI's API with conversation management and tool calls
-📦 **Bulk Operations**: Process hundreds of products automatically
-🎯 **Smart Filtering**: Filter products by category, language, or other criteria
-🔄 **Rollback Support**: Undo changes with complete rollback functionality
-⚡ **Resume Capability**: Resume interrupted tasks or extend existing ones
-📊 **Progress Tracking**: Monitor task progress and completion statistics
-🛠️ **WP-CLI Integration**: Complete command-line interface for automation
-📈 **Database Management**: Organized job and run tracking
+- 🤖 **AI-Powered Processing**: Uses OpenAI's API with conversation management and tool calls
+- 📦 **Bulk Operations**: Process hundreds of products automatically
+- 🎯 **Smart Filtering**: Filter products by category, language, or other criteria
+- 🔄 **Rollback Support**: Undo changes with complete rollback functionality
+- ⚡ **Resume Capability**: Resume interrupted tasks or extend existing ones
+- 📊 **Progress Tracking**: Monitor task progress and completion statistics
+- 🛠️ **WP-CLI Integration**: Complete command-line interface for automation
+- 📈 **Database Management**: Organized job and run tracking
 
 ## Demo Video
 
