@@ -69,6 +69,9 @@ class Run {
                 'task'       => $task,
             ),
         );
+        if ( 0 === $wpdb->insert_id ) {
+            throw new \Exception( 'Failed to create task.' );
+        }
         return new Run( $wpdb->insert_id );
     }
 
@@ -412,7 +415,10 @@ class Run {
     public function get_product_ids(): array {
         global $wpdb;
         $product_ids = $wpdb->get_col(
-            $wpdb->prepare( 'SELECT product_id FROM ' . Job::get_table_name() . ' WHERE run_id = %d', $this->id ),
+            $wpdb->prepare(
+                'SELECT product_id FROM ' . Job::get_table_name() . ' WHERE run_id = %d',
+                $this->id,
+            ),
         );
         return \array_map( static fn( $product_id ) => (int) $product_id, $product_ids );
     }

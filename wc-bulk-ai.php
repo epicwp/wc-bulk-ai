@@ -73,7 +73,7 @@ xwp_load_app(
         $table_name = $wpdb->prefix . 'wcbai_runs';
         $sql        = "CREATE TABLE $table_name (
         id mediumint(9) NOT NULL AUTO_INCREMENT,
-        task varchar(255) NOT NULL,
+        task TEXT NOT NULL,
         status varchar(20) NOT NULL,
         created_at datetime NOT NULL,
         started_at datetime NOT NULL,
