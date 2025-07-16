@@ -13,6 +13,16 @@ A powerful WordPress plugin that uses AI to bulk update your WooCommerce product
 🛠️ **WP-CLI Integration**: Complete command-line interface for automation
 📈 **Database Management**: Organized job and run tracking
 
+## Demo Video
+
+See the WooCommerce Product Bulk Agent in action:
+
+[![WooCommerce Product Bulk Agent Demo](https://img.youtube.com/vi/nCkvmf8z5Q8/0.jpg)](https://www.youtube.com/watch?v=nCkvmf8z5Q8)
+
+[Watch the demo video](https://www.youtube.com/watch?v=nCkvmf8z5Q8) to see how the plugin works with real WooCommerce products.
+
+**Note**: Commands shown in the video may differ from the current version. Always refer to this documentation or use `wp product-bulk-agent --help` for the most up-to-date command syntax and options.
+
 ## Requirements
 
 - WordPress 5.0 or higher
